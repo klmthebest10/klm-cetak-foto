@@ -1,0 +1,1220 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>KLM Cetak Foto</title>
+<meta name="description" content="Aplikasi cetak pas foto, layout grid, KTP depan-belakang, dan dokumen untuk studio foto dan digital printing.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF6B4A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KLM Cetak">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<style>
+/* Layout: meja kerja tiga kolom — rak foto | lembar kertas di atas meja | panel pengaturan. Kartu tebal bergaris tinta + bayangan offset ala stiker. */
+:root{
+  --bg:#EDF1F8; --surface:#FFFFFF; --surface2:#F5F7FC; --ink:#1E2142; --muted:#62688C; --line:#D6DCEA;
+  --coral:#FF6B4A; --coral-soft:#FFE3DB; --mint:#1FB59C; --mint-soft:#D5F5EE; --sun:#FFC845; --sky:#5B8DEF; --danger:#E5484D;
+  --shadow:#1E2142; --desk:#DCE3F0; --desk-dot:#C9D2E5; --onAccent:#FFFFFF;
+  --f-disp:'Fredoka','Nunito',ui-rounded,system-ui,sans-serif; --f-body:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --r:14px; color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#13152A; --surface:#1D2040; --surface2:#252950; --ink:#EEF0FF; --muted:#A2A7D0; --line:#363B66;
+  --coral:#FF7C5E; --coral-soft:#4A2B33; --mint:#38CDB3; --mint-soft:#173C3D; --sun:#FFD166; --sky:#7FA6FF;
+  --shadow:#05060F; --desk:#0E1024; --desk-dot:#1F2347; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#13152A; --surface:#1D2040; --surface2:#252950; --ink:#EEF0FF; --muted:#A2A7D0; --line:#363B66;
+  --coral:#FF7C5E; --coral-soft:#4A2B33; --mint:#38CDB3; --mint-soft:#173C3D; --sun:#FFD166; --sky:#7FA6FF;
+  --shadow:#05060F; --desk:#0E1024; --desk-dot:#1F2347; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+[hidden]{display:none!important}
+svg.i{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* header */
+.top{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:2px solid var(--ink);
+  padding:calc(8px + env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) 8px max(14px,env(safe-area-inset-left,0px));
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font:700 20px/1 var(--f-disp);letter-spacing:.2px;white-space:nowrap}
+.brand .logo{width:36px;height:36px;border-radius:11px;background:var(--coral);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--shadow);display:grid;place-items:center;color:#fff;transform:rotate(-6deg)}
+.brand small{display:block;font:600 11px/1.2 var(--f-body);color:var(--muted);letter-spacing:.4px;text-transform:uppercase}
+.tabs{display:flex;gap:6px;background:var(--surface2);border:2px solid var(--line);border-radius:999px;padding:4px;overflow-x:auto;max-width:100%;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{border:0;background:transparent;border-radius:999px;padding:7px 14px;font-weight:800;display:flex;align-items:center;gap:7px;cursor:pointer;white-space:nowrap;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--surface)}
+.tab:hover:not([aria-selected="true"]){color:var(--ink)}
+.top .spacer{flex:1}
+.top-actions{display:flex;gap:8px}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:2px solid var(--ink);background:var(--surface);border-radius:12px;padding:8px 13px;font-weight:800;cursor:pointer;box-shadow:3px 3px 0 var(--shadow);transition:transform .08s,box-shadow .08s;white-space:nowrap;min-height:40px}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.primary{background:var(--coral);color:var(--onAccent)}
+.btn.mint{background:var(--mint);color:#fff}
+.btn.sun{background:var(--sun);color:#1E2142}
+.btn.sm{padding:5px 9px;min-height:32px;font-size:13px;border-radius:10px;box-shadow:2px 2px 0 var(--shadow)}
+.btn.icon{padding:0;width:40px}
+.btn.sm.icon{width:32px}
+.btn.ghost{box-shadow:none;border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--ink);transform:none}
+.btn:disabled{opacity:.45;pointer-events:none}
+
+/* app grid */
+.app{display:grid;grid-template-columns:240px minmax(0,1fr) 340px;gap:14px;
+  padding-block:14px;padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));
+  flex:1;min-height:560px;grid-template-rows:minmax(0,1fr)}
+.panel{background:var(--surface);border:2px solid var(--ink);border-radius:var(--r);box-shadow:4px 4px 0 var(--shadow);display:flex;flex-direction:column;min-height:0;min-width:0}
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:2px dashed var(--line)}
+.panel-h h2{margin:0;font:700 17px/1.1 var(--f-disp)}
+.panel-b{padding:12px 14px;overflow:auto;min-height:0;flex:1;display:flex;flex-direction:column;gap:14px}
+.count{font:700 12px/1 var(--f-body);background:var(--coral-soft);color:var(--coral);padding:4px 8px;border-radius:999px}
+
+/* library */
+.drop{border:2px dashed var(--line);border-radius:12px;padding:12px;text-align:center;color:var(--muted);font-size:13px;display:flex;flex-direction:column;gap:8px;transition:background .15s,border-color .15s}
+.drop.over{border-color:var(--coral);background:var(--coral-soft);color:var(--ink)}
+.drop .row{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.lib{display:flex;flex-direction:column;gap:8px}
+.ph{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;padding:6px;border-radius:12px;border:2px solid transparent;cursor:pointer;background:var(--surface2)}
+.ph:hover{border-color:var(--line)}
+.ph img,.ph .noimg{width:56px;height:56px;border-radius:9px;object-fit:cover;background:var(--line);display:block}
+.ph .nm{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ph .meta{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ph .tags{display:flex;gap:4px;margin-top:3px;flex-wrap:wrap}
+.tag{font-size:10.5px;font-weight:800;padding:2px 6px;border-radius:6px;background:var(--mint-soft);color:var(--mint)}
+.tag.c{background:var(--coral-soft);color:var(--coral)}
+.ph .acts{display:flex;flex-direction:column;gap:4px}
+.ph .acts button{border:0;background:transparent;color:var(--muted);cursor:pointer;padding:4px;border-radius:7px;display:grid;place-items:center}
+.ph .acts button:hover{background:var(--surface);color:var(--ink)}
+.empty-lib{font-size:13px;color:var(--muted);text-align:center;padding:10px 4px}
+
+/* stage */
+.stage{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.seg{display:inline-flex;border:2px solid var(--ink);border-radius:12px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:6px 11px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;min-height:36px}
+.seg button+button{border-left:2px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--sun);color:#1E2142}
+select.pick,input.pick{border:2px solid var(--ink);border-radius:12px;background:var(--surface);padding:6px 10px;font-weight:700;min-height:40px}
+.desk{flex:1;min-height:320px;border-radius:var(--r);border:2px solid var(--ink);background-color:var(--desk);
+  background-image:radial-gradient(var(--desk-dot) 1.4px,transparent 1.6px);background-size:18px 18px;display:grid;place-items:center;overflow:hidden;position:relative}
+#sheet{background:#fff;box-shadow:0 2px 0 rgba(0,0,0,.08),6px 8px 0 rgba(30,33,66,.18);border-radius:2px;cursor:pointer;touch-action:manipulation}
+.pager{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;background:var(--surface);border:2px solid var(--ink);border-radius:999px;padding:3px;box-shadow:2px 2px 0 var(--shadow)}
+.pager span{font-weight:800;font-size:13px;padding:0 6px;font-variant-numeric:tabular-nums}
+.pager button{border:0;background:transparent;border-radius:999px;width:30px;height:30px;display:grid;place-items:center;cursor:pointer}
+.pager button:hover{background:var(--surface2)}
+.hint{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:center;pointer-events:none}
+.hint span{background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:4px 12px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.info{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px}
+.chip{background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:3px 10px;font-weight:700;font-variant-numeric:tabular-nums}
+.chip b{color:var(--coral)}
+.outbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.outbar .grow{flex:1}
+
+/* form fields */
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec>h3{margin:0;font:700 15px/1.2 var(--f-disp);display:flex;align-items:center;gap:8px}
+.sec>h3 .dot{width:10px;height:10px;border-radius:50%;background:var(--coral);border:2px solid var(--ink)}
+.sec>h3 .dot.m{background:var(--mint)}.sec>h3 .dot.s{background:var(--sun)}.sec>h3 .dot.k{background:var(--sky)}
+.fld{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700}
+.fld>span{display:flex;justify-content:space-between;gap:8px;color:var(--muted)}
+.fld>span b{color:var(--ink);font-variant-numeric:tabular-nums}
+.fld input[type=text],.fld input[type=number],.fld select,.inp{border:2px solid var(--line);border-radius:10px;background:var(--surface2);padding:7px 9px;font-weight:700;min-height:38px;width:100%}
+.fld input:focus,.fld select:focus,.inp:focus{border-color:var(--ink);outline:none}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+input[type=range]{width:100%;accent-color:var(--coral);height:22px}
+.check{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;cursor:pointer}
+.check input{width:18px;height:18px;accent-color:var(--coral)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:2px solid var(--line);background:var(--surface2);border-radius:999px;padding:5px 11px;font-weight:800;font-size:12.5px;cursor:pointer}
+.chips button:hover{border-color:var(--ink)}
+.chips button.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+details.sec{border-top:2px dashed var(--line);padding-top:12px}
+details.sec>summary{list-style:none;cursor:pointer;font:700 15px/1.2 var(--f-disp);display:flex;align-items:center;gap:8px}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary::after{content:"+";margin-left:auto;font-weight:800;color:var(--muted)}
+details.sec[open]>summary::after{content:"–"}
+.note{font-size:12px;color:var(--muted);line-height:1.4;margin:0}
+
+/* job rows / slots */
+.jobs{display:flex;flex-direction:column;gap:8px}
+.job{border:2px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:7px;background:var(--surface2)}
+.job .l1{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.job .l2{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.job select,.job input{border:2px solid var(--line);border-radius:9px;background:var(--surface);padding:5px 7px;font-weight:700;min-height:34px;min-width:0;width:100%}
+.stepper{display:inline-flex;align-items:center;border:2px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.stepper button{border:0;background:transparent;width:30px;height:32px;font-weight:800;cursor:pointer;font-size:16px}
+.stepper input{border:0!important;width:46px!important;text-align:center;min-height:32px!important;border-radius:0!important;padding:0!important;font-variant-numeric:tabular-nums}
+.job .cap{font-size:11.5px;color:var(--muted);font-weight:700;margin-left:auto}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.slot{border:2px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px;background:var(--surface2)}
+.slot .lbl{font:700 13px/1 var(--f-disp);display:flex;justify-content:space-between;align-items:center}
+.slot .thumb{aspect-ratio:85.6/54;max-width:100%;border-radius:8px;background:var(--line);display:grid;place-items:center;overflow:hidden;cursor:pointer;color:var(--muted);font-size:12px;font-weight:700;text-align:center}
+.slot .thumb img{width:100%;height:100%;object-fit:cover}
+.slot .acts{display:flex;gap:4px;flex-wrap:wrap}
+.slot select{border:2px solid var(--line);border-radius:9px;background:var(--surface);padding:4px 6px;font-weight:700;font-size:12.5px;width:100%;min-height:32px}
+.mini{display:flex;flex-direction:column;gap:6px}
+.mini .it{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;border:2px solid var(--line);border-radius:10px;padding:5px;background:var(--surface2)}
+.mini .it img,.mini .it .noimg{width:44px;height:44px;border-radius:7px;object-fit:cover;background:var(--line)}
+.mini .it .nm{font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini .it select{border:1.5px solid var(--line);border-radius:7px;background:var(--surface);font-size:12px;font-weight:700;padding:2px 4px;margin-top:3px;max-width:100%}
+.mini .it .acts{display:flex;gap:2px}
+.mini .it .acts button{border:0;background:transparent;color:var(--muted);border-radius:7px;width:28px;height:28px;display:grid;place-items:center;cursor:pointer}
+.mini .it .acts button:hover{background:var(--surface);color:var(--ink)}
+.price{display:flex;justify-content:space-between;align-items:baseline;background:var(--mint-soft);border-radius:10px;padding:8px 10px;font-weight:800}
+.price b{font:700 18px/1 var(--f-disp);color:var(--mint);font-variant-numeric:tabular-nums}
+
+/* dialogs */
+dialog{border:2px solid var(--ink);border-radius:18px;padding:0;background:var(--surface);color:var(--ink);box-shadow:6px 6px 0 var(--shadow);max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px)}
+dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
+.dlg-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:2px dashed var(--line)}
+.dlg-h h2{margin:0;font:700 18px/1.1 var(--f-disp);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#editor{width:1180px;height:min(820px,calc(100dvh - 24px))}
+#editor[open]{display:flex;flex-direction:column}
+.ed{display:grid;grid-template-columns:minmax(0,1fr) 330px;flex:1;min-height:0}
+.ed-view{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:2px dashed var(--line)}
+.ed-bar{display:flex;gap:6px;padding:8px 10px;flex-wrap:wrap;align-items:center;border-bottom:2px dashed var(--line)}
+.ed-canvas{flex:1;min-height:240px;position:relative;background-color:var(--desk);background-image:linear-gradient(45deg,var(--desk-dot) 25%,transparent 25%,transparent 75%,var(--desk-dot) 75%),linear-gradient(45deg,var(--desk-dot) 25%,transparent 25%,transparent 75%,var(--desk-dot) 75%);background-size:20px 20px;background-position:0 0,10px 10px}
+#edCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.ed-side{overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:14px;min-height:0}
+.ed-res{font-size:12px;color:var(--muted);font-weight:700;padding:6px 10px;font-variant-numeric:tabular-nums}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sw{width:34px;height:34px;border-radius:10px;border:2px solid var(--ink);cursor:pointer;box-shadow:2px 2px 0 var(--shadow);position:relative}
+.sw.on::after{content:"";position:absolute;inset:7px;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 2px #1E2142}
+.sw input{opacity:0;position:absolute;inset:0;cursor:pointer;width:100%;height:100%}
+.busy{position:absolute;inset:0;display:grid;place-items:center;background:rgba(14,16,36,.25);z-index:5}
+.busy div{background:var(--surface);border:2px solid var(--ink);border-radius:999px;padding:8px 16px;font-weight:800;display:flex;gap:10px;align-items:center;box-shadow:3px 3px 0 var(--shadow)}
+.spin{width:18px;height:18px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--coral);animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#framer{width:440px}
+.fr-wrap{padding:14px;display:flex;flex-direction:column;gap:12px;align-items:center}
+#frCanvas{border:2px solid var(--ink);border-radius:6px;touch-action:none;cursor:grab;background:#fff;max-width:100%}
+.fr-wrap .fld{width:100%}
+.dlg-f{display:flex;gap:8px;justify-content:flex-end;padding:12px 14px;border-top:2px dashed var(--line);flex-wrap:wrap}
+#globalBusy{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(14,16,36,.35)}
+#globalBusy div{background:var(--surface);border:2px solid var(--ink);border-radius:999px;padding:10px 18px;font-weight:800;display:flex;gap:10px;align-items:center;box-shadow:4px 4px 0 var(--shadow)}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);opacity:0;z-index:120;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:12px;font-weight:700;max-width:min(92vw,520px);text-align:center;transition:.2s;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%)}
+#printArea{display:none}
+
+/* responsive */
+@media (max-width:1180px){.app{grid-template-columns:210px minmax(0,1fr) 310px}}
+@media (max-width:900px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto;flex:none;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+  .top{gap:10px}
+  .top .spacer{display:none}
+  .tabs{order:3;width:100%}
+  .top-actions{margin-left:auto}
+  .lib-panel .panel-b{max-height:none}
+  .lib{flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .ph{grid-template-columns:56px;grid-template-rows:auto auto;flex:none;width:76px;justify-items:center;padding:6px}
+  .ph .phi,.ph .acts{display:none}
+  html,body{height:auto}
+  .desk{min-height:62vh;flex:none;height:62vh}
+  .ed{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(260px,46%) 1fr}
+  .ed-view{border-right:0;border-bottom:2px dashed var(--line)}
+  #editor{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;border:0}
+}
+@media (max-width:420px){.brand small{display:none}.slots{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media print{
+  body{background:#fff!important}
+  body>*:not(#printArea){display:none!important}
+  #printArea{display:block!important}
+  #printArea img{display:block;break-after:page;page-break-after:always}
+  #printArea img:last-child{break-after:auto;page-break-after:auto}
+}
+</style>
+<style id="pageStyle"></style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-7h16v7h-3"/><path d="M7 14h10v7H7z"/></symbol>
+  <symbol id="i-pdf" viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h4"/></symbol>
+  <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+  <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v16" /><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
+  <symbol id="i-rl" viewBox="0 0 24 24"><path d="M4 4v5h5"/><path d="M4.5 9A8 8 0 1 1 6 17"/></symbol>
+  <symbol id="i-rr" viewBox="0 0 24 24"><path d="M20 4v5h-5"/><path d="M19.5 9A8 8 0 1 0 18 17"/></symbol>
+  <symbol id="i-flip" viewBox="0 0 24 24"><path d="M12 3v18M8 7l-5 5 5 5V7zM16 7l5 5-5 5V7z"/></symbol>
+  <symbol id="i-crop" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14"/></symbol>
+  <symbol id="i-magic" viewBox="0 0 24 24"><path d="M4 20L15 9M14 4l1 2 2 1-2 1-1 2-1-2-2-1 2-1zM19 11l.7 1.3L21 13l-1.3.7L19 15l-.7-1.3L17 13l1.3-.7z"/></symbol>
+  <symbol id="i-l" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-r" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"/></symbol>
+  <symbol id="i-inst" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M12 7v7M9 11l3 3 3-3"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-uparr" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-dnarr" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5 16c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M14 10h5M14 14h4"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing</small></div></div>
+  <nav class="tabs" role="tablist" aria-label="Mode cetak">
+    <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
+    <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
+    <button class="tab" role="tab" data-mode="card"><svg class="i"><use href="#i-card"/></svg>KTP &amp; Kartu</button>
+    <button class="tab" role="tab" data-mode="doc"><svg class="i"><use href="#i-doc"/></svg>Dokumen</button>
+  </nav>
+  <div class="spacer"></div>
+  <div class="top-actions">
+    <button class="btn sm" id="installBtn" hidden><svg class="i"><use href="#i-inst"/></svg>Pasang App</button>
+    <button class="btn sm icon" id="themeBtn" title="Ganti tema" aria-label="Ganti tema"><svg class="i"><use href="#i-auto"/></svg></button>
+  </div>
+</header>
+
+<main class="app">
+  <!-- LIBRARY -->
+  <aside class="panel lib-panel" aria-label="Daftar foto">
+    <div class="panel-h"><h2>Foto</h2><span class="count" id="libCount">0</span></div>
+    <div class="panel-b">
+      <div class="drop" id="drop">
+        <div class="row">
+          <button class="btn sm primary" id="addBtn"><svg class="i"><use href="#i-up"/></svg>Tambah</button>
+          <button class="btn sm" id="camBtn"><svg class="i"><use href="#i-cam"/></svg>Kamera</button>
+        </div>
+        <span>Seret foto ke sini, atau tempel (Ctrl+V)</span>
+      </div>
+      <div class="lib" id="lib"></div>
+    </div>
+  </aside>
+
+  <!-- STAGE -->
+  <section class="stage" aria-label="Pratinjau lembar">
+    <div class="toolbar">
+      <select class="pick" id="paperSel" data-k="paper" aria-label="Ukuran kertas"></select>
+      <div class="seg" role="group" aria-label="Orientasi">
+        <button data-orient="portrait">Tegak</button><button data-orient="landscape">Mendatar</button>
+      </div>
+      <div class="info" id="info"></div>
+    </div>
+    <div class="desk" id="desk">
+      <div class="hint"><span id="hintTxt">Ketuk foto di lembar untuk mengatur posisi</span></div>
+      <canvas id="sheet" aria-label="Pratinjau kertas"></canvas>
+      <div class="pager" id="pager"><button id="prevPg" aria-label="Halaman sebelumnya"><svg class="i"><use href="#i-l"/></svg></button><span id="pgTxt">1 / 1</span><button id="nextPg" aria-label="Halaman berikutnya"><svg class="i"><use href="#i-r"/></svg></button></div>
+    </div>
+    <div class="outbar">
+      <button class="btn primary" id="printBtn"><svg class="i"><use href="#i-print"/></svg>Cetak</button>
+      <button class="btn mint" id="pdfBtn"><svg class="i"><use href="#i-pdf"/></svg>PDF</button>
+      <button class="btn" id="pngBtn"><svg class="i"><use href="#i-img"/></svg>PNG</button>
+      <button class="btn" id="jpgBtn"><svg class="i"><use href="#i-dl"/></svg>JPG</button>
+      <span class="grow"></span>
+      <label class="fld" style="flex-direction:row;align-items:center;gap:6px"><span>Resolusi</span>
+        <select class="pick" data-k="dpi" id="dpiSel"><option value="150">150 dpi</option><option value="200">200 dpi</option><option value="300">300 dpi</option><option value="600">600 dpi</option></select></label>
+    </div>
+  </section>
+
+  <!-- OPTIONS -->
+  <aside class="panel" aria-label="Pengaturan">
+    <div class="panel-h"><h2 id="optTitle">Pas Foto</h2></div>
+    <div class="panel-b" id="opts">
+
+      <!-- PAS FOTO -->
+      <div data-panel="pas" class="sec">
+        <div class="sec"><h3><span class="dot"></span>Paket cepat</h3>
+          <div class="chips" id="pasPresets"></div>
+        </div>
+        <div class="sec"><h3><span class="dot m"></span>Ukuran &amp; jumlah</h3>
+          <div class="jobs" id="jobs"></div>
+          <button class="btn sm ghost" data-act="jobAdd"><svg class="i"><use href="#i-plus"/></svg>Tambah ukuran</button>
+        </div>
+        <div class="sec"><h3><span class="dot s"></span>Penataan</h3>
+          <label class="fld"><span>Jarak antar foto <b data-out="pas.gap"></b></span><input type="range" min="0" max="10" step="0.5" data-k="pas.gap" data-unit="mm"></label>
+          <div class="row2">
+            <label class="fld"><span>Posisi</span><select data-k="pas.align"><option value="left">Kiri atas</option><option value="center">Tengah atas</option></select></label>
+            <label class="fld"><span>Susunan</span><select data-k="pas.sort"><option value="1">Hemat kertas</option><option value="0">Sesuai urutan</option></select></label>
+          </div>
+          <label class="fld"><span>Teks di bawah foto (opsional)</span><input type="text" data-k="pas.caption" placeholder="mis. nama pelanggan"></label>
+        </div>
+      </div>
+
+      <!-- GRID -->
+      <div data-panel="grid" class="sec" hidden>
+        <div class="sec"><h3><span class="dot"></span>Pola layout</h3>
+          <div class="chips" id="gridPresets"></div>
+          <div class="row2">
+            <label class="fld"><span>Kolom</span><input type="number" min="1" max="12" data-k="grid.cols"></label>
+            <label class="fld"><span>Baris</span><input type="number" min="1" max="15" data-k="grid.rows"></label>
+          </div>
+          <label class="fld"><span>Jarak antar foto <b data-out="grid.gap"></b></span><input type="range" min="0" max="15" step="0.5" data-k="grid.gap" data-unit="mm"></label>
+          <div class="row2">
+            <label class="fld"><span>Isi kotak</span><select data-k="grid.fit"><option value="cover">Penuh (dipotong)</option><option value="contain">Utuh (tidak dipotong)</option></select></label>
+            <label class="fld"><span>Sumber foto</span><select data-k="grid.source"><option value="repeat">1 foto diulang</option><option value="seq">Berurutan</option></select></label>
+          </div>
+          <label class="check"><input type="checkbox" data-k="grid.autorot">Putar otomatis mengikuti kotak</label>
+        </div>
+        <div class="sec"><h3><span class="dot m"></span>Foto dalam grid</h3>
+          <div class="mini" id="gridList"></div>
+          <div class="row2">
+            <select class="inp" id="gridAdd" aria-label="Tambah foto ke grid"></select>
+            <button class="btn sm ghost" data-act="gridAll">Pakai semua foto</button>
+          </div>
+          <label class="fld" data-show="grid.repeat"><span>Jumlah lembar</span><input type="number" min="1" max="50" data-k="grid.pages"></label>
+        </div>
+        <div class="sec"><h3><span class="dot s"></span>Teks keterangan</h3>
+          <label class="fld"><span>Teks di bawah setiap foto</span><input type="text" data-k="grid.caption" placeholder="kosongkan jika tidak perlu"></label>
+          <label class="fld"><span>Ukuran huruf <b data-out="grid.capSize"></b></span><input type="range" min="6" max="28" step="1" data-k="grid.capSize" data-unit="pt"></label>
+        </div>
+      </div>
+
+      <!-- CARD -->
+      <div data-panel="card" class="sec" hidden>
+        <div class="sec"><h3><span class="dot"></span>Jenis kartu</h3>
+          <select class="inp" data-k="card.type" id="cardType"></select>
+          <div class="row2" data-show="card.custom">
+            <label class="fld"><span>Lebar (mm)</span><input type="number" step="0.1" data-k="card.cw"></label>
+            <label class="fld"><span>Tinggi (mm)</span><input type="number" step="0.1" data-k="card.ch"></label>
+          </div>
+        </div>
+        <div class="sec"><h3><span class="dot m"></span>Depan &amp; belakang</h3>
+          <div class="slots" id="cardSlots"></div>
+          <p class="note">Foto KTP dari HP? Tekan <b>Luruskan</b> lalu geser 4 sudut ke tepi kartu agar hasilnya rata dan pas ukuran.</p>
+        </div>
+        <div class="sec"><h3><span class="dot s"></span>Penempatan</h3>
+          <div class="row2">
+            <label class="fld"><span>Susunan</span><select data-k="card.layout"><option value="stack">Atas–bawah</option><option value="side">Kiri–kanan</option></select></label>
+            <label class="fld"><span>Letak di kertas</span><select data-k="card.pos"><option value="top">Atas</option><option value="center">Tengah</option></select></label>
+          </div>
+          <div class="row2">
+            <label class="fld"><span>Skala</span><select data-k="card.scale"><option value="100">100% (asli)</option><option value="120">120%</option><option value="150">150%</option><option value="200">200%</option></select></label>
+            <label class="fld"><span>Jumlah salinan</span><input type="number" min="1" max="10" data-k="card.copies"></label>
+          </div>
+          <label class="fld"><span>Jarak depan–belakang <b data-out="card.gap"></b></span><input type="range" min="0" max="30" step="1" data-k="card.gap" data-unit="mm"></label>
+          <label class="fld"><span>Sudut membulat <b data-out="card.radius"></b></span><input type="range" min="0" max="5" step="0.5" data-k="card.radius" data-unit="mm"></label>
+          <label class="check"><input type="checkbox" data-k="card.gray">Hitam-putih (fotokopi)</label>
+          <label class="check"><input type="checkbox" data-k="card.outline">Garis tepi tipis untuk dipotong</label>
+        </div>
+      </div>
+
+      <!-- DOC -->
+      <div data-panel="doc" class="sec" hidden>
+        <div class="sec"><h3><span class="dot"></span>Halaman dokumen</h3>
+          <div class="mini" id="docList"></div>
+          <div class="row2">
+            <select class="inp" id="docAdd" aria-label="Tambah halaman dari foto"></select>
+            <button class="btn sm ghost" data-act="docUpload"><svg class="i"><use href="#i-up"/></svg>Unggah</button>
+          </div>
+          <p class="note">Ijazah, akta, KK, surat, nota. Filter <b>Scan bersih</b> memutihkan kertas dan menghapus bayangan.</p>
+        </div>
+        <div class="sec"><h3><span class="dot m"></span>Penataan</h3>
+          <div class="row2">
+            <label class="fld"><span>Per lembar</span><select data-k="doc.per"><option value="1">1 halaman</option><option value="2">2 halaman</option><option value="4">4 halaman</option></select></label>
+            <label class="fld"><span>Isi</span><select data-k="doc.fit"><option value="contain">Utuh</option><option value="cover">Penuh</option></select></label>
+          </div>
+          <label class="fld"><span>Skala isi <b data-out="doc.scale"></b></span><input type="range" min="40" max="100" step="1" data-k="doc.scale" data-unit="%"></label>
+          <label class="check"><input type="checkbox" data-k="doc.autorot">Putar otomatis</label>
+          <label class="check"><input type="checkbox" data-k="doc.outline">Garis tepi</label>
+        </div>
+      </div>
+
+      <!-- COMMON -->
+      <details class="sec" open><summary>Kertas &amp; margin</summary>
+        <div class="row2" data-show="paper.custom">
+          <label class="fld"><span>Lebar (mm)</span><input type="number" data-k="pw"></label>
+          <label class="fld"><span>Tinggi (mm)</span><input type="number" data-k="ph"></label>
+        </div>
+        <label class="fld"><span>Margin tepi <b data-out="margin"></b></span><input type="range" min="0" max="25" step="0.5" data-k="margin" data-unit="mm"></label>
+        <label class="fld" data-show="cuts"><span>Panduan potong</span><select data-k="cut">
+          <option value="bantu">Garis bantu di sela foto</option><option value="sudut">Tanda sudut</option><option value="kotak">Garis tepi tiap foto</option><option value="none">Tanpa</option></select></label>
+      </details>
+
+      <details class="sec" data-show="frame" open><summary>Bingkai</summary>
+        <div class="chips" id="frameChips"></div>
+        <div class="row2">
+          <label class="fld"><span>Tebal <b data-out="frame.width"></b></span><input type="range" min="0.5" max="10" step="0.5" data-k="frame.width" data-unit="mm"></label>
+          <label class="fld"><span>Sudut bulat <b data-out="frame.radius"></b></span><input type="range" min="0" max="10" step="0.5" data-k="frame.radius" data-unit="mm"></label>
+        </div>
+        <div class="swatches" id="frameSw"></div>
+      </details>
+
+      <details class="sec"><summary>Kalibrasi printer</summary>
+        <p class="note">Cetak halaman uji, ukur garis 100 mm dengan penggaris, lalu isi hasilnya. Pastikan skala cetak di printer 100% / “Actual size”.</p>
+        <div class="row2">
+          <label class="fld"><span>Garis mendatar (mm)</span><input type="number" step="0.1" id="measX" placeholder="100"></label>
+          <label class="fld"><span>Garis tegak (mm)</span><input type="number" step="0.1" id="measY" placeholder="100"></label>
+        </div>
+        <div class="row2">
+          <label class="fld"><span>Geser kanan (mm)</span><input type="number" step="0.5" data-k="calib.ox"></label>
+          <label class="fld"><span>Geser bawah (mm)</span><input type="number" step="0.5" data-k="calib.oy"></label>
+        </div>
+        <div class="info"><span class="chip" id="calibTxt"></span></div>
+        <div class="row2"><button class="btn sm" data-act="calibPrint"><svg class="i"><use href="#i-print"/></svg>Halaman uji</button><button class="btn sm ghost" data-act="calibReset">Reset</button></div>
+      </details>
+
+      <details class="sec"><summary>Hitung biaya</summary>
+        <div class="row2">
+          <label class="fld"><span>Harga / lembar (Rp)</span><input type="number" step="500" data-k="price.sheet"></label>
+          <label class="fld"><span>Rangkap</span><input type="number" min="1" data-k="price.copies"></label>
+        </div>
+        <div class="price"><span id="priceTxt">0 lembar</span><b id="priceTot">Rp0</b></div>
+      </details>
+    </div>
+  </aside>
+</main>
+
+<!-- EDITOR -->
+<dialog id="editor" aria-label="Edit foto">
+  <div class="dlg-h"><h2 id="edTitle">Edit foto</h2>
+    <button class="btn sm ghost" id="edReset">Reset semua</button>
+    <button class="btn sm primary" id="edDone">Selesai</button></div>
+  <div class="ed">
+    <div class="ed-view">
+      <div class="ed-bar" id="edBarView">
+        <button class="btn sm icon" data-ed-act="rotL" title="Putar kiri" aria-label="Putar kiri"><svg class="i"><use href="#i-rl"/></svg></button>
+        <button class="btn sm icon" data-ed-act="rotR" title="Putar kanan" aria-label="Putar kanan"><svg class="i"><use href="#i-rr"/></svg></button>
+        <button class="btn sm icon" data-ed-act="flip" title="Cermin" aria-label="Cermin"><svg class="i"><use href="#i-flip"/></svg></button>
+        <button class="btn sm" data-ed-act="crop"><svg class="i"><use href="#i-crop"/></svg>Potong &amp; luruskan</button>
+        <button class="btn sm ghost" id="cmpBtn"><svg class="i"><use href="#i-eye"/></svg>Tahan: lihat asli</button>
+      </div>
+      <div class="ed-bar" id="edBarCrop" hidden>
+        <select class="pick" id="cropAspect" aria-label="Rasio potong" style="min-height:32px;padding:3px 8px">
+          <option value="free">Bebas</option><option value="card">Kartu (KTP)</option><option value="a4">A4</option><option value="f4">F4</option><option value="34">3:4</option><option value="23">2:3</option><option value="11">1:1</option></select>
+        <button class="btn sm ghost" data-ed-act="cropFull">Tepi penuh</button>
+        <button class="btn sm ghost" data-ed-act="cropClear">Hapus potongan</button>
+        <span style="flex:1"></span>
+        <button class="btn sm ghost" data-ed-act="cropCancel">Batal</button>
+        <button class="btn sm mint" data-ed-act="cropApply">Terapkan</button>
+      </div>
+      <div class="ed-canvas" id="edWrap"><canvas id="edCanvas"></canvas><div class="busy" id="edBusy" hidden><div><span class="spin"></span><span id="edBusyTxt">Memproses…</span></div></div></div>
+      <div class="ed-res" id="edRes"></div>
+    </div>
+    <div class="ed-side">
+      <div class="sec">
+        <button class="btn primary" data-ed-act="auto"><svg class="i"><use href="#i-magic"/></svg>Perbaiki otomatis</button>
+        <p class="note">Meratakan warna pudar, mengurangi noise, memperbesar resolusi foto kecil, dan mempertajam detail. Semua diproses di perangkat ini.</p>
+      </div>
+      <div class="sec"><h3><span class="dot"></span>Kualitas &amp; ketajaman</h3>
+        <label class="fld"><span>Pertajam <b data-edout="adj.sharp"></b></span><input type="range" min="0" max="100" data-ed="adj.sharp"></label>
+        <label class="fld"><span>Kurangi noise / bintik <b data-edout="adj.denoise"></b></span><input type="range" min="0" max="100" data-ed="adj.denoise"></label>
+        <label class="fld"><span>Haluskan kulit <b data-edout="adj.smooth"></b></span><input type="range" min="0" max="100" data-ed="adj.smooth"></label>
+        <label class="fld"><span>Perbesar resolusi</span><select data-ed="adj.upscale"><option value="1">Tidak</option><option value="1.5">1,5×</option><option value="2">2×</option><option value="3">3×</option></select></label>
+        <label class="check"><input type="checkbox" data-ed="adj.auto">Koreksi warna &amp; pudar otomatis</label>
+      </div>
+      <div class="sec"><h3><span class="dot m"></span>Cahaya &amp; warna</h3>
+        <label class="fld"><span>Kecerahan <b data-edout="adj.bright"></b></span><input type="range" min="-100" max="100" data-ed="adj.bright"></label>
+        <label class="fld"><span>Kontras <b data-edout="adj.contrast"></b></span><input type="range" min="-100" max="100" data-ed="adj.contrast"></label>
+        <label class="fld"><span>Saturasi <b data-edout="adj.sat"></b></span><input type="range" min="-100" max="100" data-ed="adj.sat"></label>
+        <label class="fld"><span>Kehangatan <b data-edout="adj.warm"></b></span><input type="range" min="-100" max="100" data-ed="adj.warm"></label>
+      </div>
+      <div class="sec"><h3><span class="dot s"></span>Filter</h3>
+        <div class="chips" id="edFilters"></div>
+      </div>
+      <div class="sec"><h3><span class="dot k"></span>Ganti warna latar</h3>
+        <label class="check"><input type="checkbox" data-ed="bg.on">Aktifkan ganti latar</label>
+        <div class="swatches" id="bgSw"></div>
+        <label class="fld"><span>Cara deteksi</span><select data-ed="bg.method"><option value="ai">AI deteksi orang</option><option value="flood">Warna dinding polos</option></select></label>
+        <label class="fld" id="tolFld"><span>Toleransi warna dinding <b data-edout="bg.tol"></b></span><input type="range" min="5" max="80" data-ed="bg.tol"></label>
+        <label class="fld"><span>Kehalusan tepi <b data-edout="bg.feather"></b></span><input type="range" min="0" max="6" data-ed="bg.feather"></label>
+        <p class="note">Mode AI memuat model deteksi orang dari internet sekali, lalu bisa dipakai offline. Untuk foto studio berlatar polos, “Warna dinding polos” sering lebih rapi.</p>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- FRAMER -->
+<dialog id="framer" aria-label="Atur posisi foto">
+  <div class="dlg-h"><h2>Atur posisi</h2><button class="btn sm icon ghost" id="frClose" aria-label="Tutup"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="fr-wrap">
+    <canvas id="frCanvas"></canvas>
+    <label class="fld"><span>Perbesar <b id="frZoomTxt"></b></span><input type="range" id="frZoom" min="1" max="4" step="0.01"></label>
+    <label class="check" id="frGuideWrap"><input type="checkbox" id="frGuide" checked>Tampilkan panduan wajah pas foto</label>
+    <p class="note">Geser foto dengan jari atau mouse. Posisi ini dipakai untuk semua foto berukuran sama.</p>
+  </div>
+  <div class="dlg-f">
+    <button class="btn sm ghost" id="frReset">Reset</button>
+    <button class="btn sm" id="frEdit"><svg class="i"><use href="#i-edit"/></svg>Edit foto</button>
+    <button class="btn sm primary" id="frDone">Selesai</button>
+  </div>
+</dialog>
+
+<input type="file" id="fileIn" accept="image/*" multiple hidden>
+<input type="file" id="camIn" accept="image/*" capture="environment" hidden>
+<div id="globalBusy" hidden><div><span class="spin"></span><span id="gbTxt">Memproses…</span></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="printArea"></div>
+
+<script>
+'use strict';
+/* ============ KONSTANTA ============ */
+const MP_BASE='https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/';
+const PAPERS={A4:[210,297,'A4 (21×29,7 cm)'],F4:[215,330,'F4 / Folio (21,5×33 cm)'],Letter:[215.9,279.4,'Letter'],Legal:[215.9,355.6,'Legal'],A5:[148,210,'A5'],A3:[297,420,'A3'],
+  '4R':[101.6,152.4,'Kertas foto 4R (10×15)'],'5R':[127,177.8,'Kertas foto 5R (13×18)'],'6R':[152.4,203.2,'Kertas foto 6R'],'8R':[203.2,254,'Kertas foto 8R'],custom:[0,0,'Ukuran sendiri']};
+const PAS_SIZES=[['2x3',20,30,'2×3 cm'],['3x4',30,40,'3×4 cm'],['4x6',40,60,'4×6 cm'],['3x3',30,30,'3×3 cm'],['4x4',40,40,'4×4 cm'],
+  ['35x45',35,45,'3,5×4,5 (paspor)'],['2in',50.8,50.8,'2×2 inci (visa AS)'],['5x5',50,50,'5×5 cm'],['2R',63.5,88.9,'2R (6×9)'],['3R',88.9,127,'3R (9×13)'],['4R',101.6,152.4,'4R (10×15)'],['custom',0,0,'Ukuran sendiri']];
+const CARD_TYPES={ktp:[85.6,53.98,'KTP / SIM / ATM / NPWP / BPJS'],kpelajar:[85.6,53.98,'Kartu pelajar / mahasiswa'],paspor:[125,88,'Paspor (halaman data)'],nikah:[105,148,'Buku nikah (1 halaman)'],custom:[0,0,'Ukuran sendiri']};
+const FRAMES=[['none','Tanpa'],['putih','Bingkai warna'],['polaroid','Polaroid'],['garis','Garis'],['ganda','Garis ganda'],['putus','Putus-putus'],['titik','Titik lucu'],['gelombang','Gelombang'],['bulat','Sudut bulat']];
+const FRAME_COLORS=['#FFFFFF','#1E2142','#FF6B4A','#FFC845','#1FB59C','#5B8DEF','#F28DB2','#C9A15A'];
+const BG_COLORS=[['#C8102E','Merah'],['#1F4FB5','Biru'],['#FFFFFF','Putih'],['#D9D9D9','Abu muda'],['#7EC8F0','Biru muda']];
+const FILTERS=[['none','Normal'],['gray','Hitam putih'],['sepia','Sepia'],['vivid','Cerah'],['scan','Scan bersih'],['bw','Scan H/P']];
+const PAS_PRESETS=[
+  ['3×4 isi 4 + 2×3 isi 4',[['3x4',4],['2x3',4]]],['3×4 + 2×3 (6+6)',[['3x4',6],['2x3',6]]],['3×4 penuh',[['3x4',-1]]],['2×3 penuh',[['2x3',-1]]],
+  ['4×6 isi 4',[['4x6',4]]],['4×6 + 3×4 + 2×3',[['4x6',2],['3x4',4],['2x3',4]]],['Paspor 4,5 isi 6',[['35x45',6]]],['Visa 2×2 in',[['2in',2]]]];
+const GRID_PRESETS=[[1,1],[1,2],[2,2],[2,3],[3,3],[3,4],[4,4],[4,5],[5,6]];
+const ASPECTS={card:85.6/53.98,a4:210/297,f4:215/330,'34':3/4,'23':2/3,'11':1};
+
+/* ============ STATE ============ */
+const DEF={mode:'pas',theme:'system',paper:'A4',orient:'portrait',pw:210,ph:297,margin:6,dpi:300,cut:'bantu',
+  frame:{style:'none',color:'#FFFFFF',width:2,radius:0},
+  calib:{sx:100,sy:100,ox:0,oy:0},
+  pas:{jobs:[{photo:null,size:'3x4',count:4,cw:30,ch:40},{photo:null,size:'2x3',count:4,cw:20,ch:30}],gap:2,align:'left',sort:'1',caption:''},
+  grid:{rows:3,cols:2,gap:4,fit:'cover',source:'repeat',autorot:true,photos:[],pages:1,caption:'',capSize:10},
+  card:{type:'ktp',cw:85.6,ch:53.98,front:null,back:null,layout:'stack',pos:'top',scale:'100',copies:1,gap:10,radius:3,gray:false,outline:true},
+  doc:{pages:[],per:'1',fit:'contain',scale:100,autorot:true,outline:false},
+  price:{sheet:3000,copies:1}};
+function clone(o){return JSON.parse(JSON.stringify(o))}
+function merge(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&a[k]&&typeof a[k]==='object')merge(a[k],b[k]);else if(k in a)a[k]=b[k]}return a}
+let S=clone(DEF);
+try{const sv=JSON.parse(localStorage.getItem('klmcetak.v1')||'null');if(sv)S=merge(clone(DEF),sv)}catch(e){}
+// foto tidak disimpan antar sesi → kosongkan rujukan
+S.pas.jobs.forEach(j=>j.photo=null);S.grid.photos=[];S.card.front=S.card.back=null;S.doc.pages=[];
+const photos=new Map();let seq=0;
+const V={page:0,pages:[],pxmm:1,pendingSlot:null};
+let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem('klmcetak.v1',JSON.stringify(S))}catch(e){}},300)}
+
+/* ============ UTIL ============ */
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
+const fmt=(n,d=1)=>Number(n).toLocaleString('id-ID',{maximumFractionDigits:d});
+const rupiah=n=>'Rp'+Math.round(n).toLocaleString('id-ID');
+function cv(w,h){const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w));c.height=Math.max(1,Math.round(h));return c}
+function ctx2(c){return c.getContext('2d',{willReadFrequently:true})}
+function getP(o,p){return p.split('.').reduce((a,k)=>a==null?a:a[k],o)}
+function setP(o,p,v){const ks=p.split('.');const l=ks.pop();ks.reduce((a,k)=>a[k],o)[l]=v}
+function hexRgb(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return[(n>>16)&255,(n>>8)&255,n&255]}
+let toastT;function toast(m,ms=2600){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),ms)}
+function gbusy(on,txt){$('#globalBusy').hidden=!on;if(txt)$('#gbTxt').textContent=txt}
+const tick=()=>new Promise(r=>setTimeout(r,16));
+function icon(id){return `<svg class="i"><use href="#${id}"/></svg>`}
+
+/* ============ PEMROSESAN GAMBAR ============ */
+function boxBlur(src,w,h,r){
+  r=Math.max(1,Math.round(r));if(r>=w)r=w-1;if(r>=h)r=h-1;if(r<1)return src.slice();
+  const n=src.length,tmp=new Uint8ClampedArray(n),out=new Uint8ClampedArray(n),d=2*r+1;
+  for(let y=0;y<h;y++){const row=y*w;
+    for(let c=0;c<3;c++){let s=0;
+      for(let i=-r;i<=r;i++){const xx=i<0?0:(i>=w?w-1:i);s+=src[(row+xx)*4+c]}
+      for(let x=0;x<w;x++){tmp[(row+x)*4+c]=s/d;let xa=x+r+1;if(xa>=w)xa=w-1;let xs=x-r;if(xs<0)xs=0;s+=src[(row+xa)*4+c]-src[(row+xs)*4+c]}}}
+  for(let x=0;x<w;x++){
+    for(let c=0;c<3;c++){let s=0;
+      for(let i=-r;i<=r;i++){const yy=i<0?0:(i>=h?h-1:i);s+=tmp[(yy*w+x)*4+c]}
+      for(let y=0;y<h;y++){out[(y*w+x)*4+c]=s/d;let ya=y+r+1;if(ya>=h)ya=h-1;let ys=y-r;if(ys<0)ys=0;s+=tmp[(ya*w+x)*4+c]-tmp[(ys*w+x)*4+c]}}}
+  for(let i=3;i<n;i+=4)out[i]=src[i];
+  return out;
+}
+function edgeSmooth(d,w,h,r,amt,sig){
+  const b=boxBlur(boxBlur(d,w,h,r),w,h,r),k=1/(2*sig*sig);
+  for(let i=0;i<d.length;i+=4){const dr=b[i]-d[i],dg=b[i+1]-d[i+1],db=b[i+2]-d[i+2];
+    const df=(Math.abs(dr)+Math.abs(dg)+Math.abs(db))/3;const wt=amt*Math.exp(-df*df*k);
+    d[i]+=dr*wt;d[i+1]+=dg*wt;d[i+2]+=db*wt}
+}
+function unsharp(d,w,h,r,amt,th){
+  const b=boxBlur(d,w,h,r);
+  for(let i=0;i<d.length;i+=4)for(let c=0;c<3;c++){const df=d[i+c]-b[i+c];if(df>th||df<-th)d[i+c]=d[i+c]+df*amt}
+}
+function autoLevels(d){
+  const H=[new Uint32Array(256),new Uint32Array(256),new Uint32Array(256)],n=d.length/4;
+  for(let i=0;i<d.length;i+=4){H[0][d[i]]++;H[1][d[i+1]]++;H[2][d[i+2]]++}
+  const L=H.map(hh=>{let lo=0,hi=255,acc=0;const cut=n*0.004;
+    while(lo<254&&(acc+=hh[lo])<cut)lo++;acc=0;while(hi>1&&(acc+=hh[hi])<cut)hi--;
+    if(hi-lo<40){lo=0;hi=255}const t=new Uint8ClampedArray(256);for(let v=0;v<256;v++)t[v]=(v-lo)*255/(hi-lo);return t});
+  let sum=0;for(let i=0;i<d.length;i+=4){const r=L[0][d[i]],g=L[1][d[i+1]],b=L[2][d[i+2]];
+    d[i]=d[i]*0.15+r*0.85;d[i+1]=d[i+1]*0.15+g*0.85;d[i+2]=d[i+2]*0.15+b*0.85;sum+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]}
+  const mean=sum/n/255;
+  if(mean<0.42&&mean>0.02){const g=Math.max(0.62,Math.log(0.46)/Math.log(mean));const G=new Uint8ClampedArray(256);
+    for(let v=0;v<256;v++)G[v]=255*Math.pow(v/255,g);for(let i=0;i<d.length;i+=4){d[i]=G[d[i]];d[i+1]=G[d[i+1]];d[i+2]=G[d[i+2]]}}
+}
+function tone(d,a){
+  if(!a.bright&&!a.contrast&&!a.sat&&!a.warm)return;
+  const B=a.bright*1.1,C=a.contrast*1.6,f=(259*(C+255))/(255*(259-C)),lut=new Float32Array(256);
+  for(let v=0;v<256;v++)lut[v]=f*(v+B-128)+128;
+  const s=1+a.sat/100,wm=a.warm*0.45;
+  for(let i=0;i<d.length;i+=4){let r=lut[d[i]],g=lut[d[i+1]],b=lut[d[i+2]];
+    if(s!==1){const l=0.299*r+0.587*g+0.114*b;r=l+(r-l)*s;g=l+(g-l)*s;b=l+(b-l)*s}
+    if(wm){r+=wm;b-=wm}d[i]=r;d[i+1]=g;d[i+2]=b}
+}
+function applyFilter(d,w,h,f){
+  if(f==='none'||!f)return;
+  if(f==='gray'){for(let i=0;i<d.length;i+=4){const l=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];d[i]=d[i+1]=d[i+2]=l}return}
+  if(f==='sepia'){for(let i=0;i<d.length;i+=4){const r=d[i],g=d[i+1],b=d[i+2];d[i]=r*.393+g*.769+b*.189;d[i+1]=r*.349+g*.686+b*.168;d[i+2]=r*.272+g*.534+b*.131}return}
+  if(f==='vivid'){tone(d,{bright:4,contrast:14,sat:28,warm:4});return}
+  const r=Math.max(12,Math.round(Math.max(w,h)/45));
+  const bg=boxBlur(boxBlur(d,w,h,r),w,h,r);
+  if(f==='scan'){for(let i=0;i<d.length;i+=4)for(let c=0;c<3;c++){let v=d[i+c]/Math.max(bg[i+c],1);v=v>1?1:v;d[i+c]=255*Math.pow(v,1.7)}return}
+  if(f==='bw'){for(let i=0;i<d.length;i+=4){const l=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2],bl=0.299*bg[i]+0.587*bg[i+1]+0.114*bg[i+2];
+    const v=(l/Math.max(bl,1)-0.78)*2000;d[i]=d[i+1]=d[i+2]=v}}
+}
+function upscale(src,f){let c=src,cur=1;
+  while(cur<f-0.01){const st=Math.min(2,f/cur);const n=cv(c.width*st,c.height*st);const x=n.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(c,0,0,n.width,n.height);c=n;cur*=st}
+  return c}
+
+/* --- perspektif --- */
+function solve8(A,b){const n=8;for(let i=0;i<n;i++)A[i]=A[i].concat([b[i]]);
+  for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;[A[c],A[p]]=[A[p],A[c]];
+    const pv=A[c][c]||1e-12;for(let k=c;k<=n;k++)A[c][k]/=pv;
+    for(let r=0;r<n;r++)if(r!==c){const f=A[r][c];if(f)for(let k=c;k<=n;k++)A[r][k]-=f*A[c][k]}}
+  return A.map(r=>r[n])}
+function homography(src,dst){const A=[],b=[];
+  for(let i=0;i<4;i++){const[x,y]=src[i],[u,v]=dst[i];A.push([x,y,1,0,0,0,-u*x,-u*y]);b.push(u);A.push([0,0,0,x,y,1,-v*x,-v*y]);b.push(v)}
+  return solve8(A,b).concat([1])}
+function warpQuad(src,q,aspect){
+  const sw=src.width,sh=src.height,P=q.map(([x,y])=>[x*sw,y*sh]),dst=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+  let W=(dst(P[0],P[1])+dst(P[3],P[2]))/2,H=(dst(P[0],P[3])+dst(P[1],P[2]))/2;
+  const r=ASPECTS[aspect];
+  if(r){const cur=W/H;const want=Math.abs(Math.log(cur/r))<Math.abs(Math.log(cur*r))?r:1/r;const area=W*H;W=Math.sqrt(area*want);H=W/want}
+  const k=Math.min(1,3000/Math.max(W,H));W=Math.max(8,Math.round(W*k));H=Math.max(8,Math.round(H*k));
+  const M=homography([[0,0],[W,0],[W,H],[0,H]],P);
+  const sd=ctx2(src).getImageData(0,0,sw,sh).data,out=cv(W,H),ox=out.getContext('2d'),id=ox.createImageData(W,H),o=id.data;
+  for(let v=0;v<H;v++){for(let u=0;u<W;u++){
+    const z=M[6]*u+M[7]*v+1,x=(M[0]*u+M[1]*v+M[2])/z,y=(M[3]*u+M[4]*v+M[5])/z;
+    const x0=Math.floor(x),y0=Math.floor(y),fx=x-x0,fy=y-y0;const oi=(v*W+u)*4;
+    if(x0<0||y0<0||x0>=sw-1||y0>=sh-1){const cx=Math.min(sw-1,Math.max(0,Math.round(x))),cy=Math.min(sh-1,Math.max(0,Math.round(y)));const si=(cy*sw+cx)*4;o[oi]=sd[si];o[oi+1]=sd[si+1];o[oi+2]=sd[si+2];o[oi+3]=255;continue}
+    const i00=(y0*sw+x0)*4,i10=i00+4,i01=i00+sw*4,i11=i01+4;
+    for(let c=0;c<3;c++){const a=sd[i00+c]+(sd[i10+c]-sd[i00+c])*fx,b=sd[i01+c]+(sd[i11+c]-sd[i01+c])*fx;o[oi+c]=a+(b-a)*fy}o[oi+3]=255}}
+  ox.putImageData(id,0,0);return out}
+
+/* --- latar (AI & warna dinding) --- */
+let segP=null;
+function loadSeg(){
+  if(segP)return segP;
+  segP=new Promise((res,rej)=>{
+    const go=()=>{try{const seg=new window.SelfieSegmentation({locateFile:f=>MP_BASE+f});seg.setOptions({modelSelection:0,selfieMode:false});res(seg)}catch(e){rej(e)}};
+    if(window.SelfieSegmentation)return go();
+    const s=document.createElement('script');s.src=MP_BASE+'selfie_segmentation.js';s.crossOrigin='anonymous';s.onload=go;s.onerror=()=>rej(new Error('load'));document.head.appendChild(s)});
+  segP.catch(()=>{segP=null});return segP}
+async function aiAlpha(s){
+  const seg=await loadSeg();
+  const mask=await new Promise((res,rej)=>{const to=setTimeout(()=>rej(new Error('timeout')),45000);
+    seg.onResults(r=>{clearTimeout(to);res(r.segmentationMask)});seg.send({image:s}).catch(e=>{clearTimeout(to);rej(e)})});
+  const w=s.width,h=s.height,t=cv(w,h),x=ctx2(t);x.drawImage(mask,0,0,w,h);const d=x.getImageData(0,0,w,h).data;
+  let amin=255,amax=0;for(let i=3;i<d.length;i+=4){if(d[i]<amin)amin=d[i];if(d[i]>amax)amax=d[i]}
+  const useA=amax-amin>20,out=new Uint8ClampedArray(w*h);
+  for(let j=0;j<w*h;j++){const v=(useA?d[j*4+3]:d[j*4])/255;let q=(v-0.3)/0.4;q=q<0?0:q>1?1:q;out[j]=255*q*q*(3-2*q)}
+  return out}
+function floodAlpha(s,tol){
+  const w=s.width,h=s.height,d=ctx2(s).getImageData(0,0,w,h).data;
+  const br=[],bg=[],bb=[];const push=i=>{br.push(d[i]);bg.push(d[i+1]);bb.push(d[i+2])};
+  for(let x=0;x<w;x+=2){push(x*4);push(((h-1)*w+x)*4)}for(let y=0;y<h;y+=2){push(y*w*4);push((y*w+w-1)*4)}
+  const med=a=>{a.sort((p,q)=>p-q);return a[a.length>>1]};const R=med(br),G=med(bg),B=med(bb);
+  const thr=tol*2.2,t2=thr*thr,loose=(thr*1.8)**2,step=(thr*0.2)**2;
+  const dist2=(i,r,g,b)=>{const dr=d[i]-r,dg=d[i+1]-g,db=d[i+2]-b;return dr*dr*0.9+dg*dg*1.2+db*db*0.9};
+  const vis=new Uint8Array(w*h),st=new Int32Array(w*h);let sp=0;
+  const seed=j=>{if(!vis[j]&&dist2(j*4,R,G,B)<t2){vis[j]=1;st[sp++]=j}};
+  for(let x=0;x<w;x++){seed(x);seed((h-1)*w+x)}for(let y=0;y<h;y++){seed(y*w);seed(y*w+w-1)}
+  while(sp){const j=st[--sp],x=j%w,y=(j/w)|0,ji=j*4;
+    const nb=[x>0?j-1:-1,x<w-1?j+1:-1,y>0?j-w:-1,y<h-1?j+w:-1];
+    for(const k of nb){if(k<0||vis[k])continue;const ki=k*4;const dR=dist2(ki,R,G,B);
+      if(dR<t2||(dR<loose&&dist2(ki,d[ji],d[ji+1],d[ji+2])<step)){vis[k]=1;st[sp++]=k}}}
+  const out=new Uint8ClampedArray(w*h);for(let j=0;j<w*h;j++)out[j]=vis[j]?0:255;return out}
+async function getMask(p){
+  const g=geo(p),b=p.bg,key=p._geoKey+'|'+b.method+'|'+b.tol+'|'+b.feather;
+  if(p._mask&&p._maskKey===key)return p._mask;
+  const sc=Math.min(1,900/Math.max(g.width,g.height)),s=cv(g.width*sc,g.height*sc);s.getContext('2d').drawImage(g,0,0,s.width,s.height);
+  let a=null;
+  if(b.method==='ai'){try{a=await aiAlpha(s)}catch(e){toast('Model AI belum bisa dimuat (cek internet). Memakai deteksi warna dinding.',3800)}}
+  if(!a)a=floodAlpha(s,b.tol);
+  const w=s.width,h=s.height,mc=cv(w,h),mx=mc.getContext('2d'),id=mx.createImageData(w,h);
+  if(b.feather>0){const t=new Uint8ClampedArray(w*h*4);for(let j=0;j<w*h;j++){t[j*4]=a[j];t[j*4+3]=255}const bl=boxBlur(t,w,h,b.feather);for(let j=0;j<w*h;j++)a[j]=bl[j*4]}
+  for(let j=0;j<w*h;j++)id.data[j*4+3]=a[j];mx.putImageData(id,0,0);
+  p._mask=mc;p._maskKey=key;return mc}
+
+/* --- foto & pipeline --- */
+function newPhoto(img,name){
+  const k=Math.min(1,3200/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
+  const o=cv((img.naturalWidth||img.width)*k,(img.naturalHeight||img.height)*k);const x=o.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(img,0,0,o.width,o.height);
+  const p={id:'f'+(++seq),name:(name||'Foto '+seq).replace(/\.[^.]+$/,''),orig:o,rot:0,flip:false,warp:null,warpAspect:'free',
+    adj:{bright:0,contrast:0,sat:0,warm:0,sharp:0,denoise:0,smooth:0,upscale:'1',auto:false,filter:'none'},
+    bg:{on:false,color:'#C8102E',method:'ai',tol:28,feather:2},framing:{},out:null,thumb:''};
+  photos.set(p.id,p);return p}
+function rotated(p){const key=p.rot+'|'+p.flip;if(p._rot&&p._rotKey===key)return p._rot;
+  const o=p.orig,sw=p.rot%180!==0,c=cv(sw?o.height:o.width,sw?o.width:o.height),x=c.getContext('2d');
+  x.translate(c.width/2,c.height/2);if(p.flip)x.scale(-1,1);x.rotate(p.rot*Math.PI/180);x.drawImage(o,-o.width/2,-o.height/2);
+  p._rot=c;p._rotKey=key;return c}
+function geo(p){const key=p.rot+'|'+p.flip+'|'+JSON.stringify(p.warp)+'|'+p.warpAspect;if(p._geo&&p._geoKey===key)return p._geo;
+  const r=rotated(p);p._geo=p.warp?warpQuad(r,p.warp,p.warpAspect):r;p._geoKey=key;return p._geo}
+async function processPhoto(p){try{return await processPhotoRaw(p)}catch(e){console.error(e);toast('Foto terlalu besar atau gagal diproses. Coba kurangi "Perbesar resolusi".',4000);return null}}
+async function processPhotoRaw(p){
+  const tok=p._tok=(p._tok||0)+1,a=p.adj;
+  const g=geo(p);let mask=null;
+  if(p.bg.on){mask=await getMask(p);if(tok!==p._tok)return false}
+  await tick();if(tok!==p._tok)return false;
+  let c=cv(g.width,g.height),x=ctx2(c);x.drawImage(g,0,0);
+  let w=c.width,h=c.height,id,d;
+  if(a.denoise>0){id=x.getImageData(0,0,w,h);edgeSmooth(id.data,w,h,1+Math.round(a.denoise/35),a.denoise/100,8+a.denoise*0.35);x.putImageData(id,0,0)}
+  let up=num(a.upscale)||1;const lim=4200/Math.max(w,h);up=Math.min(up,Math.max(1,lim));
+  if(up>1.05){c=upscale(c,up);x=ctx2(c);w=c.width;h=c.height}
+  id=x.getImageData(0,0,w,h);d=id.data;
+  if(a.smooth>0)edgeSmooth(d,w,h,3+Math.round(a.smooth/22),a.smooth/100*0.9,22);
+  if(a.auto)autoLevels(d);
+  tone(d,a);
+  const sh=a.sharp/100*1.6+(up>1.05?0.45:0);
+  if(sh>0)unsharp(d,w,h,up>1.05?2:1,sh,2);
+  applyFilter(d,w,h,a.filter);
+  if(mask){const mc=cv(w,h),mx=ctx2(mc);mx.imageSmoothingQuality='high';mx.drawImage(mask,0,0,w,h);const md=mx.getImageData(0,0,w,h).data;const[cr,cg,cb]=hexRgb(p.bg.color);
+    for(let i=0;i<d.length;i+=4){const al=md[i+3]/255;if(al<1){d[i]=d[i]*al+cr*(1-al);d[i+1]=d[i+1]*al+cg*(1-al);d[i+2]=d[i+2]*al+cb*(1-al)}}}
+  x.putImageData(id,0,0);
+  if(tok!==p._tok)return false;
+  p.out=c;p._gray=null;
+  const tk=Math.min(1,160/Math.max(w,h)),t=cv(w*tk,h*tk),tx=t.getContext('2d');tx.imageSmoothingQuality='high';tx.drawImage(c,0,0,t.width,t.height);p.thumb=t.toDataURL('image/jpeg',0.8);
+  return true}
+function grayOf(p){if(p._gray&&p._grayOf===p.out)return p._gray;const c=cv(p.out.width,p.out.height),x=ctx2(c);x.drawImage(p.out,0,0);const id=x.getImageData(0,0,c.width,c.height);applyFilter(id.data,c.width,c.height,'gray');tone(id.data,{bright:0,contrast:12,sat:0,warm:0});x.putImageData(id,0,0);p._gray=c;p._grayOf=p.out;return c}
+
+/* ============ LAYOUT (satuan mm) ============ */
+function paperDims(){let[w,h]=S.paper==='custom'?[num(S.pw)||210,num(S.ph)||297]:PAPERS[S.paper];if(S.orient==='landscape')[w,h]=[Math.max(w,h),Math.min(w,h)];else[w,h]=[Math.min(w,h),Math.max(w,h)];return[w,h]}
+function pasSize(j){if(j.size==='custom')return[Math.max(5,num(j.cw)),Math.max(5,num(j.ch))];const s=PAS_SIZES.find(z=>z[0]===j.size)||PAS_SIZES[1];return[s[1],s[2]]}
+function capH(){return S.pas.caption?Math.max(3.5,10*0.3528*1.6):0}
+function fitCount(w,h){const[W,H]=paperDims(),m=num(S.margin),g=num(S.pas.gap),ch=h+capH();return Math.max(0,Math.floor((W-2*m+g)/(w+g)))*Math.max(0,Math.floor((H-2*m+g)/(ch+g)))}
+function layoutPas(over){
+  const[W,H]=paperDims(),m=num(S.margin),g=num(S.pas.gap),cH=capH();
+  let jobs=(over||S.pas.jobs).map((j,i)=>({j,i,sz:pasSize(j)}));
+  if(S.pas.sort==='1')jobs=jobs.slice().sort((a,b)=>b.sz[1]-a.sz[1]||b.sz[0]-a.sz[0]);
+  const pages=[];let pg={items:[]},x=m,y=m,rowH=0;
+  for(const{j,i,sz}of jobs){const[w,h0]=sz,h=h0+cH;let cnt=Math.max(0,Math.round(num(j.count)));
+    if(j.count<0){cnt=fitCount(w,h0)}
+    for(let k=0;k<cnt;k++){
+      if(x+w>W-m+0.01&&x>m){x=m;y+=rowH+g;rowH=0}
+      if(y+h>H-m+0.01&&(y>m||pg.items.length)){pages.push(pg);pg={items:[]};x=m;y=m;rowH=0}
+      pg.items.push({pid:j.photo,x,y,w,h:h0,fit:'cover',frame:S.frame,caption:S.pas.caption,capSize:10,slot:{kind:'job',i},guide:true});
+      x+=w+g;if(h>rowH)rowH=h}}
+  pages.push(pg);
+  if(S.pas.align==='center')for(const p of pages){if(!p.items.length)continue;const r=Math.max(...p.items.map(it=>it.x+it.w));const dx=(W-2*m-(r-m))/2;p.items.forEach(it=>it.x+=dx)}
+  return pages.filter((p,i)=>p.items.length||i===0)}
+function layoutGrid(){
+  const[W,H]=paperDims(),m=num(S.margin),G=S.grid,g=num(G.gap),cols=Math.max(1,Math.round(num(G.cols))),rows=Math.max(1,Math.round(num(G.rows)));
+  const cw=(W-2*m-(cols-1)*g)/cols,ch=(H-2*m-(rows-1)*g)/rows,cap=G.caption?num(G.capSize)*0.3528*1.7:0,per=cols*rows;
+  const list=G.photos.length?G.photos:[null];let n,pick;
+  if(G.source==='seq'){n=Math.max(1,Math.ceil(list.length/per));pick=k=>k<list.length?list[k]:undefined}else{n=Math.max(1,Math.round(num(G.pages)));pick=()=>list[0]}
+  const pages=[];
+  for(let pi=0;pi<n;pi++){const pg={items:[]};for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const k=pi*per+r*cols+c,pid=pick(k);if(pid===undefined)continue;
+    pg.items.push({pid,x:m+c*(cw+g),y:m+r*(ch+g),w:cw,h:Math.max(1,ch-cap),fit:G.fit,autorot:G.autorot,frame:S.frame,caption:G.caption,capSize:num(G.capSize),slot:{kind:'grid',i:G.source==='seq'?k:0}})}
+    pages.push(pg)}
+  return pages}
+function cardSize(){const t=CARD_TYPES[S.card.type]||CARD_TYPES.ktp;return S.card.type==='custom'?[Math.max(10,num(S.card.cw)),Math.max(10,num(S.card.ch))]:[t[0],t[1]]}
+function layoutCard(){
+  const[W,H]=paperDims(),m=num(S.margin),C=S.card,sc=num(C.scale)/100,[cw0,ch0]=cardSize(),w=cw0*sc,h=ch0*sc,g=num(C.gap);
+  const side=C.layout==='side',bw=side?2*w+g:w,bh=side?h:2*h+g,gb=8;
+  const cols=Math.max(1,Math.floor((W-2*m+gb)/(bw+gb))),rows=Math.max(1,Math.floor((H-2*m+gb)/(bh+gb))),per=cols*rows;
+  const copies=Math.max(1,Math.round(num(C.copies))),pages=[];
+  for(let k=0;k<copies;k++){const pi=Math.floor(k/per),idx=k%per;if(!pages[pi])pages[pi]={items:[]};
+    const onPage=Math.min(per,copies-pi*per),usedC=Math.min(cols,onPage),usedR=Math.ceil(onPage/cols);
+    const totW=usedC*bw+(usedC-1)*gb,totH=usedR*bh+(usedR-1)*gb;
+    const ox=(W-totW)/2,oy=C.pos==='center'?(H-totH)/2:m+4;
+    const c=idx%cols,r=Math.floor(idx/cols),bx=ox+c*(bw+gb),by=oy+r*(bh+gb);
+    const base={w,h,fit:'cover',autorot:true,radius:num(C.radius)*sc,outline:C.outline,gray:C.gray,frame:{style:'none'}};
+    pages[pi].items.push({...base,pid:C.front,x:bx,y:by,slot:{kind:'card',side:'front'},label:'DEPAN'});
+    pages[pi].items.push({...base,pid:C.back,x:side?bx+w+g:bx,y:side?by:by+h+g,slot:{kind:'card',side:'back'},label:'BELAKANG'})}
+  return pages}
+function layoutDoc(){
+  const[W,H]=paperDims(),m=num(S.margin),D=S.doc,per=num(D.per)||1,sc=num(D.scale)/100;
+  let slots;const aw=W-2*m,ah=H-2*m,g=6;
+  if(per===1)slots=[[m,m,aw,ah]];
+  else if(per===2)slots=W<=H?[[m,m,aw,(ah-g)/2],[m,m+(ah+g)/2,aw,(ah-g)/2]]:[[m,m,(aw-g)/2,ah],[m+(aw+g)/2,m,(aw-g)/2,ah]];
+  else slots=[[m,m,(aw-g)/2,(ah-g)/2],[m+(aw+g)/2,m,(aw-g)/2,(ah-g)/2],[m,m+(ah+g)/2,(aw-g)/2,(ah-g)/2],[m+(aw+g)/2,m+(ah+g)/2,(aw-g)/2,(ah-g)/2]];
+  const list=D.pages.length?D.pages:[null],pages=[];
+  list.forEach((pid,k)=>{const pi=Math.floor(k/per);if(!pages[pi])pages[pi]={items:[]};const[x,y,w,h]=slots[k%per];
+    const sw=w*sc,shh=h*sc;pages[pi].items.push({pid,x:x+(w-sw)/2,y:y+(h-shh)/2,w:sw,h:shh,fit:D.fit,autorot:D.autorot,outline:D.outline,frame:{style:'none'},slot:{kind:'doc',i:pid?k:null},doc:true})});
+  return pages}
+function layout(){return S.mode==='pas'?layoutPas():S.mode==='grid'?layoutGrid():S.mode==='card'?layoutCard():layoutDoc()}
+
+/* ============ RENDER ============ */
+function rr(ctx,x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h/2));ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function aspectKey(w,h){return(w/h).toFixed(3)}
+function fitParams(img,w,h,o){const iw=img.width,ih=img.height;
+  const rot=!!o.autorot&&((w>h)!==(iw>ih))&&Math.abs(w/h-1)>0.06&&Math.abs(iw/ih-1)>0.06;
+  const W=rot?h:w,H=rot?w:h;const s=(o.fit==='contain'?Math.min(W/iw,H/ih):Math.max(W/iw,H/ih))*(o.zoom||1);return{rot,W,H,s,iw,ih}}
+function clampFraming(fr,fp){if(fp.iw*fp.s>=fp.W){const a=fp.W/(2*fp.iw*fp.s);fr.cx=Math.min(1-a,Math.max(a,fr.cx))}else fr.cx=.5;
+  if(fp.ih*fp.s>=fp.H){const b=fp.H/(2*fp.ih*fp.s);fr.cy=Math.min(1-b,Math.max(b,fr.cy))}else fr.cy=.5;return fr}
+function drawImageInRect(ctx,img,x,y,w,h,o){
+  const fp=fitParams(img,w,h,o);const cx=o.cx??.5,cy=o.cy??.5;
+  ctx.save();ctx.translate(x+w/2,y+h/2);if(fp.rot)ctx.rotate(-Math.PI/2);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  ctx.drawImage(img,-cx*fp.iw*fp.s,-cy*fp.ih*fp.s,fp.iw*fp.s,fp.ih*fp.s);ctx.restore()}
+function framingFor(p,it){const fr=p.framing[aspectKey(it.w,it.h)];return fr?{...fr}:{zoom:1,cx:.5,cy:.5}}
+function innerRect(it,k){const fr=it.frame||{style:'none'},bw=(num(fr.width)||0)*k;let x=it.x*k,y=it.y*k,w=it.w*k,h=it.h*k;
+  if(fr.style==='putih'||fr.style==='gelombang'){x+=bw;y+=bw;w-=2*bw;h-=2*bw}
+  else if(fr.style==='polaroid'){x+=bw;y+=bw;w-=2*bw;h-=bw*4.2}
+  return[x,y,Math.max(1,w),Math.max(1,h)]}
+function drawItem(ctx,it,k,preview){
+  const fr=it.frame||{style:'none'},st=fr.style,bw=(num(fr.width)||0)*k;
+  const X=it.x*k,Y=it.y*k,Wd=it.w*k,Ht=it.h*k;const rad=(it.radius!=null?it.radius:(st!=='none'?num(fr.radius):0))*k;
+  if(st==='putih'||st==='polaroid'){ctx.fillStyle=fr.color;rr(ctx,X,Y,Wd,Ht,rad);ctx.fill()}
+  if(st==='gelombang'){ctx.fillStyle=fr.color;ctx.fillRect(X+bw*.5,Y+bw*.5,Wd-bw,Ht-bw);const rr2=bw*0.75,stp=bw*1.35;
+    const nx=Math.max(2,Math.round((Wd-bw)/stp)),ny=Math.max(2,Math.round((Ht-bw)/stp));ctx.beginPath();
+    for(let i=0;i<=nx;i++){const xx=X+bw*.5+(Wd-bw)*i/nx;ctx.moveTo(xx+rr2,Y+bw*.75);ctx.arc(xx,Y+bw*.75,rr2,0,7);ctx.moveTo(xx+rr2,Y+Ht-bw*.75);ctx.arc(xx,Y+Ht-bw*.75,rr2,0,7)}
+    for(let i=0;i<=ny;i++){const yy=Y+bw*.5+(Ht-bw)*i/ny;ctx.moveTo(X+bw*.75+rr2,yy);ctx.arc(X+bw*.75,yy,rr2,0,7);ctx.moveTo(X+Wd-bw*.75+rr2,yy);ctx.arc(X+Wd-bw*.75,yy,rr2,0,7)}ctx.fill()}
+  let[ix,iy,iw,ih]=innerRect(it,k);
+  const capMM=it.caption?num(it.capSize||10)*0.3528:0;
+  let capY=null;
+  if(it.caption){if(st==='polaroid'){capY=iy+ih+(Y+Ht-(iy+ih))/2}else{capY=Y+Ht+capMM*1.05*k}}
+  const p=it.pid?photos.get(it.pid):null,img=p&&p.out?(it.gray?grayOf(p):p.out):null;
+  const irad=(st==='putih'||st==='polaroid'||st==='gelombang')?Math.max(0,rad-bw):rad;
+  ctx.save();rr(ctx,ix,iy,iw,ih,irad);ctx.clip();
+  if(img){const f=framingFor(p,it);drawImageInRect(ctx,img,ix,iy,iw,ih,{fit:it.fit,autorot:it.autorot,...f})}
+  else if(preview){ctx.fillStyle='#EEF1F8';ctx.fillRect(ix,iy,iw,ih);ctx.strokeStyle='#B9C1D9';ctx.setLineDash([4,4]);ctx.lineWidth=1.5;ctx.strokeRect(ix+1,iy+1,iw-2,ih-2);ctx.setLineDash([]);
+    ctx.fillStyle='#8A91B4';ctx.font=`700 ${Math.max(9,Math.min(iw,ih)*0.11)}px Nunito,sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(it.label||(p?'Memproses…':'Ketuk: pilih foto'),ix+iw/2,iy+ih/2)}
+  ctx.restore();
+  if(st==='garis'||st==='ganda'||st==='putus'||st==='titik'){ctx.save();ctx.strokeStyle=fr.color;const lw=Math.max(0.25*k,st==='ganda'?bw*0.3:bw);ctx.lineWidth=lw;
+    if(st==='putus')ctx.setLineDash([lw*2.5,lw*1.6]);if(st==='titik'){ctx.lineCap='round';ctx.setLineDash([0.01,lw*2])}
+    rr(ctx,X+lw/2,Y+lw/2,Wd-lw,Ht-lw,Math.max(0,rad-lw/2));ctx.stroke();
+    if(st==='ganda'){const o2=bw*0.85;rr(ctx,X+o2,Y+o2,Wd-2*o2,Ht-2*o2,Math.max(0,rad-o2));ctx.stroke()}ctx.restore()}
+  if(it.outline){ctx.save();ctx.strokeStyle='#9BA0B4';ctx.lineWidth=Math.max(0.6,0.15*k);rr(ctx,X,Y,Wd,Ht,rad);ctx.stroke();ctx.restore()}
+  if(capY!=null){ctx.save();ctx.fillStyle='#1E2142';ctx.font=`700 ${capMM*k}px Nunito,Arial,sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+    let t=it.caption;const maxW=Wd*0.96;while(ctx.measureText(t).width>maxW&&t.length>1)t=t.slice(0,-1);ctx.fillText(t,X+Wd/2,capY);ctx.restore()}
+}
+function drawCuts(ctx,page,k,W,H,phase){
+  if(page.calib||S.mode==='doc')return;
+  const mode=S.mode==='card'?'none':S.cut;if(mode==='none')return;
+  const items=page.items.map(it=>{const ch=it.caption&&it.frame?.style!=='polaroid'?num(it.capSize||10)*0.3528*1.7:0;return{x:it.x,y:it.y,w:it.w,h:it.h+ch}});
+  ctx.save();ctx.strokeStyle='#8F96B3';ctx.lineWidth=Math.max(0.5,0.12*k);
+  if(phase==='under'&&mode==='bantu'){const xs=new Set(),ys=new Set();items.forEach(r=>{xs.add(+r.x.toFixed(2));xs.add(+(r.x+r.w).toFixed(2));ys.add(+r.y.toFixed(2));ys.add(+(r.y+r.h).toFixed(2))});
+    ctx.beginPath();xs.forEach(x=>{ctx.moveTo(x*k,0);ctx.lineTo(x*k,H*k)});ys.forEach(y=>{ctx.moveTo(0,y*k);ctx.lineTo(W*k,y*k)});ctx.stroke()}
+  if(phase==='under'&&mode==='sudut'){ctx.strokeStyle='#1E2142';const L=3*k,o=1*k;ctx.beginPath();
+    items.forEach(r=>{const x0=r.x*k,y0=r.y*k,x1=(r.x+r.w)*k,y1=(r.y+r.h)*k;
+      [[x0,y0,-1,-1],[x1,y0,1,-1],[x0,y1,-1,1],[x1,y1,1,1]].forEach(([x,y,sx,sy])=>{ctx.moveTo(x+sx*o,y);ctx.lineTo(x+sx*(o+L),y);ctx.moveTo(x,y+sy*o);ctx.lineTo(x,y+sy*(o+L))})});ctx.stroke()}
+  if(phase==='over'&&mode==='kotak'){ctx.setLineDash([2*k,1.2*k]);items.forEach(r=>ctx.strokeRect(r.x*k,r.y*k,r.w*k,r.h*k))}
+  ctx.restore()}
+function drawCalib(ctx,k,W,H){
+  ctx.fillStyle='#1E2142';ctx.strokeStyle='#1E2142';ctx.lineWidth=0.3*k;ctx.font=`700 ${4*k}px Nunito,Arial,sans-serif`;ctx.textBaseline='alphabetic';
+  ctx.fillText('Halaman uji kalibrasi — ukur kedua garis dengan penggaris',15*k,18*k);
+  ctx.font=`600 ${3*k}px Nunito,Arial,sans-serif`;ctx.fillText('Garis mendatar dan tegak harus tepat 100 mm. Masukkan hasil ukur ke menu Kalibrasi printer.',15*k,24*k);
+  const x0=20,y0=45;ctx.beginPath();ctx.moveTo(x0*k,y0*k);ctx.lineTo((x0+100)*k,y0*k);for(let i=0;i<=100;i+=5){const l=i%10?2:4;ctx.moveTo((x0+i)*k,y0*k);ctx.lineTo((x0+i)*k,(y0+l)*k)}
+  const vx=20,vy=60;ctx.moveTo(vx*k,vy*k);ctx.lineTo(vx*k,(vy+100)*k);for(let i=0;i<=100;i+=5){const l=i%10?2:4;ctx.moveTo(vx*k,(vy+i)*k);ctx.lineTo((vx+l)*k,(vy+i)*k)}ctx.stroke();
+  ctx.fillText('100 mm →',(x0+102)*k,(y0+1)*k);ctx.fillText('100 mm ↓',(vx+6)*k,(vy+102)*k);
+  ctx.strokeRect(40*k,70*k,50*k,50*k);ctx.fillText('Kotak 50 × 50 mm',42*k,126*k);
+  ctx.setLineDash([1*k,1*k]);ctx.strokeRect(num(S.margin)*k,num(S.margin)*k,(W-2*num(S.margin))*k,(H-2*num(S.margin))*k);ctx.setLineDash([]);
+  ctx.fillText('Garis putus-putus = batas margin '+fmt(num(S.margin))+' mm',15*k,(H-8)*k)}
+function drawPage(ctx,page,k,preview){
+  const[W,H]=paperDims();ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,W*k,H*k);
+  if(page.calib){drawCalib(ctx,k,W,H);return}
+  if(preview&&num(S.margin)>0){ctx.save();ctx.strokeStyle='rgba(91,141,239,.35)';ctx.setLineDash([5,5]);ctx.lineWidth=1;const m=num(S.margin)*k;ctx.strokeRect(m,m,W*k-2*m,H*k-2*m);ctx.restore()}
+  drawCuts(ctx,page,k,W,H,'under');
+  for(const it of page.items)drawItem(ctx,it,k,preview);
+  drawCuts(ctx,page,k,W,H,'over')}
+let rafD=0;function draw(){cancelAnimationFrame(rafD);rafD=requestAnimationFrame(drawNow)}
+function drawNow(){
+  const pages=layout();V.pages=pages;if(V.page>=pages.length)V.page=pages.length-1;if(V.page<0)V.page=0;
+  const[W,H]=paperDims(),desk=$('#desk'),aw=desk.clientWidth-36,ah=desk.clientHeight-72;
+  let k=Math.min(aw/W,ah/H);if(!(k>0))k=1.5;V.pxmm=k;
+  const dpr=Math.min(3,window.devicePixelRatio||1),c=$('#sheet');c.width=Math.round(W*k*dpr);c.height=Math.round(H*k*dpr);c.style.width=W*k+'px';c.style.height=H*k+'px';
+  const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);drawPage(x,pages[V.page],k,true);
+  $('#pgTxt').textContent=(V.page+1)+' / '+pages.length;$('#prevPg').disabled=V.page===0;$('#nextPg').disabled=V.page>=pages.length-1;
+  updateInfo(pages)}
+function updateInfo(pages){
+  const[W,H]=paperDims();const tot=pages.reduce((a,p)=>a+p.items.length,0);let html=`<span class="chip">${fmt(W)}×${fmt(H)} mm</span><span class="chip"><b>${pages.length}</b> lembar</span>`;
+  if(S.mode==='pas'){html+=`<span class="chip"><b>${tot}</b> foto</span>`;const j=S.pas.jobs[0];if(j){const[w,h]=pasSize(j);html+=`<span class="chip">${fmt(w/10)}×${fmt(h/10)} cm muat ${fitCount(w,h)}/lembar</span>`}}
+  if(S.mode==='grid'){const it=pages[0].items[0];if(it)html+=`<span class="chip">kotak ${fmt(it.w)}×${fmt(it.h)} mm</span>`}
+  if(S.mode==='card'){const[w,h]=cardSize();html+=`<span class="chip">kartu ${fmt(w*num(S.card.scale)/100)}×${fmt(h*num(S.card.scale)/100)} mm</span>`}
+  if(S.mode==='doc')html+=`<span class="chip"><b>${S.doc.pages.length}</b> halaman dokumen</span>`;
+  $('#info').innerHTML=html;
+  const cp=Math.max(1,Math.round(num(S.price.copies)))||1,n=pages.length*cp;$('#priceTxt').textContent=`${n} lembar × ${rupiah(num(S.price.sheet))}`;$('#priceTot').textContent=rupiah(n*num(S.price.sheet));
+  const hints={pas:'Ketuk foto di lembar untuk mengatur posisi wajah',grid:'Ketuk kotak untuk mengatur posisi foto',card:'Ketuk kartu untuk mengganti atau menggeser',doc:'Ketuk halaman untuk mengedit'};$('#hintTxt').textContent=hints[S.mode]}
+
+/* ============ PANEL & UI ============ */
+function photoOpts(sel,blank='— pilih foto —'){let h=`<option value="">${blank}</option>`;photos.forEach(p=>h+=`<option value="${p.id}"${p.id===sel?' selected':''}>${esc(p.name)}</option>`);return h}
+function thumbHtml(p){return p&&p.thumb?`<img src="${p.thumb}" alt="">`:`<div class="noimg"></div>`}
+function renderLib(){
+  const L=$('#lib');$('#libCount').textContent=photos.size;
+  if(!photos.size){L.innerHTML='<div class="empty-lib">Belum ada foto. Tambahkan dari galeri, kamera, atau seret ke sini.</div>';return}
+  let h='';photos.forEach(p=>{const g=p._geo||p.orig;const tags=[];if(p.adj.auto||p.adj.sharp||p.adj.denoise||num(p.adj.upscale)>1)tags.push('<span class="tag">Diperbaiki</span>');if(p.bg.on)tags.push('<span class="tag c">Latar</span>');if(p.warp)tags.push('<span class="tag">Diluruskan</span>');
+    const o=p.out||g;h+=`<div class="ph" data-id="${p.id}" title="Edit ${esc(p.name)}">${thumbHtml(p)}<div class="phi" style="min-width:0"><div class="nm">${esc(p.name)}</div><div class="meta">${o.width}×${o.height} px</div><div class="tags">${tags.join('')}</div></div>
+    <div class="acts"><button data-lib="edit" aria-label="Edit">${icon('i-edit')}</button><button data-lib="del" aria-label="Hapus">${icon('i-trash')}</button></div></div>`});
+  L.innerHTML=h}
+function renderJobs(){
+  $('#jobs').innerHTML=S.pas.jobs.map((j,i)=>{const[w,h]=pasSize(j);return `<div class="job" data-i="${i}">
+    <div class="l1"><select data-act="jobPhoto" aria-label="Foto">${photoOpts(j.photo)}</select>
+    <select data-act="jobSize" aria-label="Ukuran">${PAS_SIZES.map(s=>`<option value="${s[0]}"${s[0]===j.size?' selected':''}>${s[3]}</option>`).join('')}</select></div>
+    ${j.size==='custom'?`<div class="l1"><input type="number" step="1" data-act="jobCW" value="${j.cw}" aria-label="Lebar mm" placeholder="lebar mm"><input type="number" step="1" data-act="jobCH" value="${j.ch}" aria-label="Tinggi mm" placeholder="tinggi mm"></div>`:''}
+    <div class="l2"><div class="stepper"><button data-act="jobDec" aria-label="Kurangi">−</button><input type="number" min="0" data-act="jobCount" value="${j.count<0?fitCount(w,h):j.count}" aria-label="Jumlah"><button data-act="jobInc" aria-label="Tambah">+</button></div>
+    <button class="btn sm ghost" data-act="jobMax">Penuhi lembar</button><button class="btn sm ghost icon" data-act="jobDel" aria-label="Hapus ukuran">${icon('i-trash')}</button></div></div>`}).join('')}
+function renderGridList(){
+  const G=S.grid;$('#gridList').innerHTML=G.photos.length?G.photos.map((id,i)=>{const p=photos.get(id);return `<div class="it" data-i="${i}">${thumbHtml(p)}<div style="min-width:0"><div class="nm">${i+1}. ${esc(p?p.name:'?')}</div></div>
+    <div class="acts"><button data-act="gridUp" aria-label="Naik">${icon('i-uparr')}</button><button data-act="gridDel" aria-label="Hapus">${icon('i-x')}</button></div></div>`}).join(''):'<p class="note">Belum ada foto di grid. Pilih dari daftar di bawah.</p>';
+  $('#gridAdd').innerHTML=photoOpts('','+ Tambah foto ke grid');
+  $$('[data-show="grid.repeat"]').forEach(e=>e.hidden=G.source!=='repeat')}
+function renderCardSlots(){
+  const C=S.card;$('#cardSlots').innerHTML=[['front','Depan'],['back','Belakang']].map(([sd,lb])=>{const p=photos.get(C[sd]);
+    return `<div class="slot" data-side="${sd}"><div class="lbl">${lb}</div><div class="thumb" data-act="cardUp">${p&&p.thumb?`<img src="${p.thumb}" alt="">`:'Ketuk untuk<br>unggah foto'}</div>
+    <select data-act="cardSel" aria-label="Foto ${lb}">${photoOpts(C[sd])}</select>
+    <div class="acts"><button class="btn sm" data-act="cardCrop"${p?'':' disabled'}>${icon('i-crop')}Luruskan</button><button class="btn sm icon ghost" data-act="cardEdit"${p?'':' disabled'} aria-label="Edit">${icon('i-edit')}</button></div></div>`}).join('')}
+function renderDocList(){
+  const D=S.doc;$('#docList').innerHTML=D.pages.length?D.pages.map((id,i)=>{const p=photos.get(id);if(!p)return'';return `<div class="it" data-i="${i}">${thumbHtml(p)}<div style="min-width:0"><div class="nm">${i+1}. ${esc(p.name)}</div>
+    <select data-act="docFilter" aria-label="Filter">${FILTERS.map(f=>`<option value="${f[0]}"${p.adj.filter===f[0]?' selected':''}>${f[1]}</option>`).join('')}</select></div>
+    <div class="acts"><button data-act="docCrop" title="Luruskan" aria-label="Luruskan">${icon('i-crop')}</button><button data-act="docRot" title="Putar" aria-label="Putar">${icon('i-rr')}</button><button data-act="docUp" aria-label="Naik">${icon('i-uparr')}</button><button data-act="docDel" aria-label="Hapus">${icon('i-x')}</button></div></div>`}).join(''):'<p class="note">Belum ada halaman. Unggah foto/scan dokumen.</p>';
+  $('#docAdd').innerHTML=photoOpts('','+ Pakai foto yang ada')}
+function renderPanels(){renderJobs();renderGridList();renderCardSlots();renderDocList()}
+function fillInputs(){
+  $$('[data-k]').forEach(el=>{const v=getP(S,el.dataset.k);if(el.type==='checkbox')el.checked=!!v;else if(document.activeElement!==el)el.value=v});
+  $$('[data-out]').forEach(el=>{const inp=$(`[data-k="${el.dataset.out}"]`);el.textContent=fmt(getP(S,el.dataset.out))+' '+(inp?.dataset.unit||'')});
+  $$('[data-orient]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.orient===S.orient));
+  $$('[data-show="paper.custom"]').forEach(e=>e.hidden=S.paper!=='custom');
+  $$('[data-show="card.custom"]').forEach(e=>e.hidden=S.card.type!=='custom');
+  $$('[data-show="frame"]').forEach(e=>e.hidden=!(S.mode==='pas'||S.mode==='grid'));
+  $$('[data-show="cuts"]').forEach(e=>e.hidden=!(S.mode==='pas'||S.mode==='grid'));
+  $('#frameChips').innerHTML=FRAMES.map(f=>`<button data-frame="${f[0]}" class="${S.frame.style===f[0]?'on':''}">${f[1]}</button>`).join('');
+  $('#frameSw').innerHTML=FRAME_COLORS.map(c=>`<button class="sw${S.frame.color.toUpperCase()===c?' on':''}" style="background:${c}" data-fcol="${c}" aria-label="Warna ${c}"></button>`).join('')+`<label class="sw" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" title="Warna lain"><input type="color" id="fcolPick" value="${S.frame.color}"></label>`;
+  $('#calibTxt').textContent=`Skala ${fmt(S.calib.sx,2)}% × ${fmt(S.calib.sy,2)}%`;
+  $$('#gridPresets button').forEach(b=>b.classList.toggle('on',+b.dataset.c===+S.grid.cols&&+b.dataset.r===+S.grid.rows))}
+function setMode(m){S.mode=m;$$('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.mode===m));$$('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==m);
+  $('#optTitle').textContent={pas:'Pas Foto',grid:'Layout Grid',card:'KTP & Kartu',doc:'Dokumen'}[m];V.page=0;fillInputs();save();draw()}
+function refreshAll(){renderLib();renderPanels();fillInputs();draw()}
+
+/* ============ TAMBAH FOTO ============ */
+function loadImgFile(f){return new Promise((res,rej)=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{res(im);setTimeout(()=>URL.revokeObjectURL(u),1000)};im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('img'))};im.src=u})}
+async function addFiles(files,slot){
+  const list=[...files].filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|webp|gif|bmp|heic)$/i.test(f.name));
+  if(!list.length){toast('Pilih file gambar (JPG, PNG, atau WEBP).');return}
+  gbusy(true,'Memuat foto…');const added=[];
+  for(const f of list){try{added.push(newPhoto(await loadImgFile(f),f.name))}catch(e){toast('Tidak bisa membuka '+f.name+'. Coba simpan ulang sebagai JPG.')}}
+  if(!added.length){gbusy(false);return}
+  assignNew(added,slot);renderLib();renderPanels();draw();
+  for(const p of added){$('#gbTxt').textContent='Menyiapkan '+p.name+'…';await processPhoto(p)}
+  gbusy(false);refreshAll();
+  if(slot&&slot.kind==='card'){const p=added[0],g=geo(p),r=g.width/g.height;if(Math.abs(Math.log(r/ASPECTS.card))>0.08&&Math.abs(Math.log(r*ASPECTS.card))>0.08){openEditor(p.id,{crop:true,aspect:'card'});toast('Geser 4 sudut ke tepi kartu, lalu Terapkan.')}}
+  else toast(added.length+' foto ditambahkan')}
+function assignNew(added,slot){
+  const ids=added.map(p=>p.id);
+  if(slot){assignSlot(slot,ids[0]);if(slot.kind==='doc'||slot.kind==='grid')ids.slice(1).forEach(id=>assignSlot({kind:slot.kind,i:null},id));return}
+  if(S.mode==='pas'){S.pas.jobs.forEach(j=>{if(!j.photo||!photos.has(j.photo))j.photo=ids[0]})}
+  else if(S.mode==='grid'){S.grid.photos.push(...ids)}
+  else if(S.mode==='card'){ids.forEach(id=>{if(!S.card.front)S.card.front=id;else if(!S.card.back)S.card.back=id})}
+  else if(S.mode==='doc'){S.doc.pages.push(...ids)}
+  // isi slot kosong lainnya agar langsung terlihat
+  if(S.mode!=='pas')S.pas.jobs.forEach(j=>{if(!j.photo)j.photo=ids[0]});
+  if(S.mode!=='grid'&&!S.grid.photos.length)S.grid.photos.push(ids[0])}
+function assignSlot(s,id){
+  if(s.kind==='job'){S.pas.jobs[s.i].photo=id}
+  else if(s.kind==='grid'){if(s.i==null||s.i>=S.grid.photos.length||S.grid.source==='repeat'&&!S.grid.photos.length)S.grid.photos.push(id);else S.grid.photos[s.i]=id}
+  else if(s.kind==='card'){S.card[s.side]=id}
+  else if(s.kind==='doc'){if(s.i==null)S.doc.pages.push(id);else S.doc.pages[s.i]=id}}
+function pickFiles(slot,cam){V.pendingSlot=slot||null;const inp=cam?$('#camIn'):$('#fileIn');inp.value='';inp.click()}
+function removePhoto(id){photos.delete(id);S.pas.jobs.forEach(j=>{if(j.photo===id)j.photo=null});S.grid.photos=S.grid.photos.filter(x=>x!==id);
+  if(S.card.front===id)S.card.front=null;if(S.card.back===id)S.card.back=null;S.doc.pages=S.doc.pages.filter(x=>x!==id);refreshAll()}
+
+/* ============ EDITOR ============ */
+const E={p:null,mode:'view',quad:null,drag:-1,fit:null,cmp:false,t:0};
+function openEditor(id,o={}){const p=photos.get(id);if(!p)return;E.p=p;$('#edTitle').textContent=p.name;fillEditor();
+  if(!$('#editor').open)$('#editor').showModal();setEdMode(o.crop?'crop':'view',o.aspect);requestAnimationFrame(drawEditor)}
+function fillEditor(){const p=E.p;
+  $$('[data-ed]').forEach(el=>{const v=getP(p,el.dataset.ed);if(el.type==='checkbox')el.checked=!!v;else el.value=v});
+  $$('[data-edout]').forEach(el=>el.textContent=getP(p,el.dataset.edout));
+  $('#edFilters').innerHTML=FILTERS.map(f=>`<button data-filter="${f[0]}" class="${p.adj.filter===f[0]?'on':''}">${f[1]}</button>`).join('');
+  $('#bgSw').innerHTML=BG_COLORS.map(([c,n])=>`<button class="sw${p.bg.color.toUpperCase()===c?' on':''}" style="background:${c}" data-bgc="${c}" title="${n}" aria-label="Latar ${n}"></button>`).join('')+`<label class="sw" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" title="Warna lain"><input type="color" id="bgPick" value="${p.bg.color}"></label>`;
+  $('#tolFld').hidden=p.bg.method!=='flood';updateRes()}
+function updateRes(){const p=E.p;if(!p)return;const o=p.out||geo(p);const dpi=300;$('#edRes').textContent=`${o.width}×${o.height} px · cetak tajam hingga ${fmt(o.width/dpi*2.54)}×${fmt(o.height/dpi*2.54)} cm (300 dpi)`}
+function setEdMode(m,aspect){E.mode=m;$('#edBarView').hidden=m!=='view';$('#edBarCrop').hidden=m!=='crop';
+  if(m==='crop'){const p=E.p;E.quad=p.warp?p.warp.map(q=>q.slice()):[[0.04,0.04],[0.96,0.04],[0.96,0.96],[0.04,0.96]];$('#cropAspect').value=aspect||p.warpAspect||'free'}
+  drawEditor()}
+function edBusy(on,t){$('#edBusy').hidden=!on;if(t)$('#edBusyTxt').textContent=t}
+async function reprocess(immediate){clearTimeout(E.t);const run=async()=>{const p=E.p;if(!p)return;edBusy(true,p.bg.on&&p.bg.method==='ai'&&!p._mask?'Menjalankan AI…':'Memproses…');
+  const ok=await processPhoto(p);if(ok!==false){edBusy(false);drawEditor();updateRes();renderLib();renderPanels();draw()}};
+  if(immediate)run();else E.t=setTimeout(run,260)}
+function drawEditor(){
+  const p=E.p;if(!p||!$('#editor').open)return;const wrap=$('#edWrap'),c=$('#edCanvas'),dpr=Math.min(2,devicePixelRatio||1);
+  const cw=wrap.clientWidth,ch=wrap.clientHeight;c.width=cw*dpr;c.height=ch*dpr;const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,cw,ch);
+  const src=E.mode==='crop'?rotated(p):(E.cmp?geo(p):(p.out||geo(p)));const pad=E.mode==='crop'?26:14;
+  const s=Math.min((cw-2*pad)/src.width,(ch-2*pad)/src.height),ox=(cw-src.width*s)/2,oy=(ch-src.height*s)/2;E.fit={ox,oy,s,w:src.width,h:src.height};
+  x.imageSmoothingQuality='high';x.drawImage(src,ox,oy,src.width*s,src.height*s);
+  if(E.cmp){x.fillStyle='rgba(30,33,66,.8)';x.fillRect(10,10,64,24);x.fillStyle='#fff';x.font='800 12px Nunito,sans-serif';x.fillText('ASLI',24,27)}
+  if(E.mode==='crop'){const P=E.quad.map(([u,v])=>[ox+u*src.width*s,oy+v*src.height*s]);
+    x.save();x.fillStyle='rgba(14,16,36,.5)';x.beginPath();x.rect(0,0,cw,ch);x.moveTo(P[0][0],P[0][1]);for(let i=3;i>=0;i--)x.lineTo(P[i][0],P[i][1]);x.closePath();x.fill('evenodd');
+    x.strokeStyle='#FF6B4A';x.lineWidth=2.5;x.beginPath();P.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]));x.closePath();x.stroke();
+    P.forEach((q,i)=>{x.beginPath();x.arc(q[0],q[1],E.drag===i?13:11,0,7);x.fillStyle='#fff';x.fill();x.lineWidth=3;x.strokeStyle='#FF6B4A';x.stroke()});
+    if(E.drag>=0){const q=E.quad[E.drag],L=110,Z=3,sx=q[0]*src.width,sy=q[1]*src.height,sz=L/(Z*s*1)/1;const lx=P[E.drag][0]<cw/2?cw-L-12:12;
+      x.save();x.beginPath();x.arc(lx+L/2,12+L/2,L/2,0,7);x.clip();x.fillStyle='#000';x.fillRect(lx,12,L,L);
+      const k=Z*s;x.drawImage(src,sx-L/2/k,sy-L/2/k,L/k,L/k,lx,12,L,L);x.restore();
+      x.strokeStyle='#FF6B4A';x.lineWidth=3;x.beginPath();x.arc(lx+L/2,12+L/2,L/2,0,7);x.stroke();x.lineWidth=1.5;x.beginPath();x.moveTo(lx+L/2-10,12+L/2);x.lineTo(lx+L/2+10,12+L/2);x.moveTo(lx+L/2,12+L/2-10);x.lineTo(lx+L/2,12+L/2+10);x.stroke()}
+    x.restore()}}
+function edPt(e){const r=$('#edCanvas').getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
+function bindEditor(){
+  const c=$('#edCanvas');
+  c.addEventListener('pointerdown',e=>{if(E.mode!=='crop')return;const[mx,my]=edPt(e),f=E.fit;let best=-1,bd=1e9;
+    E.quad.forEach(([u,v],i)=>{const d=Math.hypot(f.ox+u*f.w*f.s-mx,f.oy+v*f.h*f.s-my);if(d<bd){bd=d;best=i}});
+    if(bd<48){E.drag=best;c.setPointerCapture(e.pointerId);drawEditor()}});
+  c.addEventListener('pointermove',e=>{if(E.drag<0)return;const[mx,my]=edPt(e),f=E.fit;E.quad[E.drag]=[Math.min(1,Math.max(0,(mx-f.ox)/(f.w*f.s))),Math.min(1,Math.max(0,(my-f.oy)/(f.h*f.s)))];drawEditor()});
+  const up=()=>{if(E.drag>=0){E.drag=-1;drawEditor()}};c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
+  const cmp=$('#cmpBtn');const on=e=>{e.preventDefault();E.cmp=true;drawEditor()},off=()=>{if(E.cmp){E.cmp=false;drawEditor()}};
+  cmp.addEventListener('pointerdown',on);cmp.addEventListener('pointerup',off);cmp.addEventListener('pointerleave',off);cmp.addEventListener('pointercancel',off);
+  $('#editor').addEventListener('input',e=>{const el=e.target.closest('[data-ed]');if(el){const p=E.p;let v=el.type==='checkbox'?el.checked:(el.type==='range'?num(el.value):el.value);setP(p,el.dataset.ed,v);
+      $$(`[data-edout="${el.dataset.ed}"]`).forEach(o=>o.textContent=v);if(el.dataset.ed==='bg.method')$('#tolFld').hidden=v!=='flood';reprocess();return}
+    if(e.target.id==='bgPick'){E.p.bg.color=e.target.value.toUpperCase();E.p.bg.on=true;$$('#bgSw .sw').forEach(b=>b.classList.remove('on'));$('[data-ed="bg.on"]').checked=true;reprocess()}});
+  $('#editor').addEventListener('change',e=>{if(e.target.matches('select[data-ed],input[type=checkbox][data-ed]'))reprocess()});
+  $('#editor').addEventListener('click',e=>{const p=E.p;if(!p)return;
+    const f=e.target.closest('[data-filter]');if(f){p.adj.filter=f.dataset.filter;fillEditor();reprocess(true);return}
+    const bc=e.target.closest('[data-bgc]');if(bc){p.bg.color=bc.dataset.bgc;p.bg.on=true;fillEditor();reprocess(true);return}
+    const a=e.target.closest('[data-ed-act]');if(!a)return;const act=a.dataset.edAct;
+    if(act==='rotL'||act==='rotR'){p.rot=(p.rot+(act==='rotL'?270:90))%360;p.warp=null;p.framing={};reprocess(true)}
+    else if(act==='flip'){p.flip=!p.flip;p.warp=null;reprocess(true)}
+    else if(act==='crop')setEdMode('crop');
+    else if(act==='cropCancel')setEdMode('view');
+    else if(act==='cropFull'){E.quad=[[0,0],[1,0],[1,1],[0,1]];drawEditor()}
+    else if(act==='cropClear'){p.warp=null;p.framing={};setEdMode('view');reprocess(true)}
+    else if(act==='cropApply'){p.warp=E.quad.map(q=>q.slice());p.warpAspect=$('#cropAspect').value;p.framing={};setEdMode('view');edBusy(true,'Meluruskan…');setTimeout(()=>reprocess(true),30)}
+    else if(act==='auto'){const g=geo(p),big=Math.max(g.width,g.height);Object.assign(p.adj,{auto:true,denoise:Math.max(p.adj.denoise,22),sharp:Math.max(p.adj.sharp,40),upscale:big<900?'3':big<1500?'2':p.adj.upscale});fillEditor();reprocess(true);toast('Perbaikan otomatis diterapkan')}});
+  $('#edDone').addEventListener('click',()=>{$('#editor').close()});
+  $('#edReset').addEventListener('click',()=>{const p=E.p;p.rot=0;p.flip=false;p.warp=null;p.framing={};p.adj={bright:0,contrast:0,sat:0,warm:0,sharp:0,denoise:0,smooth:0,upscale:'1',auto:false,filter:'none'};p.bg.on=false;fillEditor();setEdMode('view');reprocess(true)});
+  $('#editor').addEventListener('close',()=>{E.mode='view';renderLib();renderPanels();draw()});
+  new ResizeObserver(()=>drawEditor()).observe($('#edWrap'))}
+
+/* ============ ATUR POSISI (FRAMER) ============ */
+const F={p:null,it:null,fr:null,drag:null};
+function openFramer(it){const p=photos.get(it.pid);if(!p||!p.out){if(p)toast('Foto masih diproses…');return}
+  F.p=p;F.it=it;F.fr=framingFor(p,it);$('#frGuideWrap').hidden=!it.guide;$('#frZoom').value=F.fr.zoom;$('#framer').showModal();drawFramer()}
+function frSize(){const it=F.it,mx=Math.min(360,window.innerWidth-80),my=Math.min(420,window.innerHeight-330);const s=Math.min(mx/it.w,my/it.h);return[it.w*s,it.h*s]}
+function drawFramer(){const c=$('#frCanvas'),[w,h]=frSize(),dpr=Math.min(2,devicePixelRatio||1);c.width=w*dpr;c.height=h*dpr;c.style.width=w+'px';c.style.height=h+'px';
+  const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.fillStyle='#fff';x.fillRect(0,0,w,h);
+  const fp=fitParams(F.p.out,w,h,{fit:F.it.fit,autorot:F.it.autorot,zoom:F.fr.zoom});clampFraming(F.fr,fp);
+  drawImageInRect(x,F.p.out,0,0,w,h,{fit:F.it.fit,autorot:F.it.autorot,...F.fr});
+  if(F.it.guide&&$('#frGuide').checked){x.save();x.strokeStyle='rgba(255,107,74,.9)';x.lineWidth=2;x.setLineDash([6,5]);
+    x.beginPath();x.ellipse(w/2,h*0.46,w*0.28,h*0.29,0,0,7);x.stroke();
+    x.beginPath();x.moveTo(0,h*0.12);x.lineTo(w,h*0.12);x.moveTo(0,h*0.78);x.lineTo(w,h*0.78);x.moveTo(w/2,0);x.lineTo(w/2,h);x.stroke();
+    x.setLineDash([]);x.fillStyle='rgba(255,107,74,.95)';x.font='800 11px Nunito,sans-serif';x.fillText('ubun-ubun',6,h*0.12-5);x.fillText('dagu',6,h*0.78-5);x.restore()}
+  $('#frZoomTxt').textContent=fmt(F.fr.zoom,2)+'×'}
+function saveFraming(){F.p.framing[aspectKey(F.it.w,F.it.h)]={...F.fr};draw()}
+function bindFramer(){const c=$('#frCanvas');
+  c.addEventListener('pointerdown',e=>{F.drag=[e.clientX,e.clientY];c.setPointerCapture(e.pointerId);c.style.cursor='grabbing'});
+  c.addEventListener('pointermove',e=>{if(!F.drag)return;const dx=e.clientX-F.drag[0],dy=e.clientY-F.drag[1];F.drag=[e.clientX,e.clientY];
+    const[w,h]=frSize(),fp=fitParams(F.p.out,w,h,{fit:F.it.fit,autorot:F.it.autorot,zoom:F.fr.zoom});
+    if(fp.rot){F.fr.cx+=dy/(fp.iw*fp.s);F.fr.cy-=dx/(fp.ih*fp.s)}else{F.fr.cx-=dx/(fp.iw*fp.s);F.fr.cy-=dy/(fp.ih*fp.s)}drawFramer();saveFraming()});
+  const up=()=>{F.drag=null;c.style.cursor='grab'};c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
+  c.addEventListener('wheel',e=>{e.preventDefault();F.fr.zoom=Math.min(4,Math.max(1,F.fr.zoom*(e.deltaY<0?1.06:1/1.06)));$('#frZoom').value=F.fr.zoom;drawFramer();saveFraming()},{passive:false});
+  $('#frZoom').addEventListener('input',e=>{F.fr.zoom=num(e.target.value);drawFramer();saveFraming()});
+  $('#frGuide').addEventListener('change',drawFramer);
+  $('#frReset').addEventListener('click',()=>{F.fr={zoom:1,cx:.5,cy:.5};$('#frZoom').value=1;drawFramer();saveFraming()});
+  $('#frDone').addEventListener('click',()=>$('#framer').close());$('#frClose').addEventListener('click',()=>$('#framer').close());
+  $('#frEdit').addEventListener('click',()=>{const id=F.p.id;$('#framer').close();openEditor(id)})}
+
+/* ============ EKSPOR & CETAK ============ */
+function renderFull(page,dpi){const[W0,H0]=paperDims();const maxPx=16.5e6;if(W0*H0*(dpi/25.4)**2>maxPx){dpi=Math.floor(25.4*Math.sqrt(maxPx/(W0*H0)));toast('Resolusi diturunkan ke '+dpi+' dpi agar muat di memori perangkat.')}
+  const[W,H]=paperDims(),k=dpi/25.4,c=cv(W*k,H*k),x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
+  x.save();x.translate(num(S.calib.ox)*k,num(S.calib.oy)*k);x.scale(num(S.calib.sx)/100||1,num(S.calib.sy)/100||1);drawPage(x,page,k,false);x.restore();return c}
+const toBlob=(c,t,q)=>new Promise(r=>c.toBlob(r,t,q));
+function hasPhotos(pages){return pages.some(p=>p.calib||p.items.some(it=>it.pid&&photos.get(it.pid)?.out))}
+function fileBase(){const d=new Date();return `klm-${S.mode}-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`}
+function dl(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+let printUrls=[];
+async function doPrint(pages){
+  if(!hasPhotos(pages)){toast('Tambahkan foto dulu sebelum mencetak.');return}
+  gbusy(true,'Menyiapkan cetak…');await tick();const area=$('#printArea');area.innerHTML='';printUrls.forEach(u=>URL.revokeObjectURL(u));printUrls=[];const[W,H]=paperDims();
+  for(let i=0;i<pages.length;i++){$('#gbTxt').textContent=`Menyiapkan lembar ${i+1}/${pages.length}…`;await tick();const c=renderFull(pages[i],num(S.dpi));const b=await toBlob(c,'image/png');const u=URL.createObjectURL(b);printUrls.push(u);
+    const im=new Image();im.src=u;im.style.width=W+'mm';im.style.height=H+'mm';area.appendChild(im);try{await im.decode()}catch(e){}}
+  $('#pageStyle').textContent=`@page{size:${W}mm ${H}mm;margin:0}`;gbusy(false);setTimeout(()=>window.print(),150)}
+async function exportImg(type){const pages=V.pages;if(!hasPhotos(pages)){toast('Belum ada foto untuk diunduh.');return}
+  gbusy(true,'Membuat gambar…');try{for(let i=0;i<pages.length;i++){$('#gbTxt').textContent=`Membuat lembar ${i+1}/${pages.length}…`;await tick();const c=renderFull(pages[i],num(S.dpi));
+    const b=await toBlob(c,type==='png'?'image/png':'image/jpeg',0.95);dl(b,`${fileBase()}${pages.length>1?'-'+(i+1):''}.${type}`);await new Promise(r=>setTimeout(r,350))}toast(pages.length>1?pages.length+' file diunduh':'File diunduh')}
+  finally{gbusy(false)}}
+async function exportPdf(){const pages=V.pages;if(!hasPhotos(pages)){toast('Belum ada foto untuk dijadikan PDF.');return}
+  if(!window.jspdf){toast('Pustaka PDF belum termuat. Sambungkan internet sekali, lalu coba lagi.');return}
+  gbusy(true,'Membuat PDF…');try{const[W,H]=paperDims(),o=W>H?'l':'p';const pdf=new window.jspdf.jsPDF({unit:'mm',format:[W,H],orientation:o,compress:true});
+    for(let i=0;i<pages.length;i++){$('#gbTxt').textContent=`Membuat PDF ${i+1}/${pages.length}…`;await tick();if(i)pdf.addPage([W,H],o);const c=renderFull(pages[i],num(S.dpi));pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',0,0,W,H,undefined,'FAST')}
+    dl(pdf.output('blob'),fileBase()+'.pdf');toast('PDF diunduh')}catch(e){toast('Gagal membuat PDF. Coba turunkan resolusi ke 200 dpi.')}finally{gbusy(false)}}
+
+/* ============ EVENT ============ */
+function onK(el){const k=el.dataset.k;let v=el.type==='checkbox'?el.checked:(el.type==='number'||el.type==='range'?num(el.value):el.value);setP(S,k,v);
+  if(k==='grid.source'||k==='card.type'){renderPanels()}
+  fillInputs();save();draw()}
+function bind(){
+  $$('.tab').forEach(t=>t.addEventListener('click',()=>setMode(t.dataset.mode)));
+  document.addEventListener('input',e=>{const el=e.target;if(el.matches('[data-k]')&&!el.closest('dialog'))onK(el)});
+  document.addEventListener('change',e=>{const el=e.target;if(el.matches('select[data-k],input[type=checkbox][data-k]')&&!el.closest('dialog'))onK(el);if(el.id==='fcolPick'){S.frame.color=el.value.toUpperCase();if(S.frame.style==='none')S.frame.style='putih';fillInputs();save();draw()}});
+  $$('[data-orient]').forEach(b=>b.addEventListener('click',()=>{S.orient=b.dataset.orient;fillInputs();save();draw()}));
+  $('#paperSel').innerHTML=Object.entries(PAPERS).map(([k,v])=>`<option value="${k}">${v[2]}</option>`).join('');
+  $('#cardType').innerHTML=Object.entries(CARD_TYPES).map(([k,v])=>`<option value="${k}">${v[2]}</option>`).join('');
+  $('#pasPresets').innerHTML=PAS_PRESETS.map((p,i)=>`<button data-pp="${i}">${p[0]}</button>`).join('');
+  $('#gridPresets').innerHTML=GRID_PRESETS.map(([c,r])=>`<button data-c="${c}" data-r="${r}">${c}×${r}</button>`).join('');
+  $('#opts').addEventListener('click',e=>{
+    const pp=e.target.closest('[data-pp]');if(pp){const ph=S.pas.jobs.find(j=>j.photo)?.photo||[...photos.keys()][0]||null;
+      S.pas.jobs=PAS_PRESETS[pp.dataset.pp][1].map(([sz,c])=>{const s=PAS_SIZES.find(z=>z[0]===sz);return{photo:ph,size:sz,count:c<0?fitCount(s[1],s[2]):c,cw:s[1],ch:s[2]}});
+      if(PAS_PRESETS[pp.dataset.pp][1].length>1)S.pas.sort='1';renderJobs();fillInputs();save();draw();return}
+    const gp=e.target.closest('[data-c]');if(gp&&gp.closest('#gridPresets')){S.grid.cols=+gp.dataset.c;S.grid.rows=+gp.dataset.r;fillInputs();save();draw();return}
+    const fr=e.target.closest('[data-frame]');if(fr){S.frame.style=fr.dataset.frame;if(S.frame.style==='putih'||S.frame.style==='polaroid'){if(S.frame.width<1.5)S.frame.width=2}if(S.frame.style==='bulat'&&!num(S.frame.radius))S.frame.radius=3;fillInputs();save();draw();return}
+    const fc=e.target.closest('[data-fcol]');if(fc){S.frame.color=fc.dataset.fcol;if(S.frame.style==='none')S.frame.style='putih';fillInputs();save();draw();return}
+    const a=e.target.closest('[data-act]');if(!a||a.tagName==='SELECT'||a.tagName==='INPUT')return;const act=a.dataset.act;
+    const ji=+a.closest('[data-i]')?.dataset.i;
+    if(act==='jobAdd'){S.pas.jobs.push({photo:S.pas.jobs[0]?.photo||[...photos.keys()][0]||null,size:'3x4',count:4,cw:30,ch:40});renderJobs()}
+    else if(act==='jobDel'){S.pas.jobs.splice(ji,1);renderJobs()}
+    else if(act==='jobInc'||act==='jobDec'){const j=S.pas.jobs[ji];const[w,h]=pasSize(j);let c=j.count<0?fitCount(w,h):j.count;j.count=Math.max(0,c+(act==='jobInc'?1:-1));renderJobs()}
+    else if(act==='jobMax'){const j=S.pas.jobs[ji];j.count=0;const base=layoutPas().length;let c=0;
+      for(;c<400;c++){j.count=c+1;if(layoutPas().length>Math.max(1,base))break}j.count=c;renderJobs();toast(`Diisi ${c} foto agar lembar penuh`)}
+    else if(act==='gridAll'){S.grid.photos=[...photos.keys()];if(S.grid.photos.length>1)S.grid.source='seq';renderGridList()}
+    else if(act==='gridDel'){S.grid.photos.splice(ji,1);renderGridList()}
+    else if(act==='gridUp'&&ji>0){const g=S.grid.photos;[g[ji-1],g[ji]]=[g[ji],g[ji-1]];renderGridList()}
+    else if(act==='cardUp'){pickFiles({kind:'card',side:a.closest('[data-side]').dataset.side})}
+    else if(act==='cardCrop'){const id=S.card[a.closest('[data-side]').dataset.side];if(id)openEditor(id,{crop:true,aspect:'card'})}
+    else if(act==='cardEdit'){const id=S.card[a.closest('[data-side]').dataset.side];if(id)openEditor(id)}
+    else if(act==='docUpload'){pickFiles({kind:'doc',i:null})}
+    else if(act==='docDel'){S.doc.pages.splice(ji,1);renderDocList()}
+    else if(act==='docUp'&&ji>0){const d=S.doc.pages;[d[ji-1],d[ji]]=[d[ji],d[ji-1]];renderDocList()}
+    else if(act==='docRot'){const p=photos.get(S.doc.pages[ji]);p.rot=(p.rot+90)%360;p.warp=null;processPhoto(p).then(()=>{renderLib();renderDocList();draw()})}
+    else if(act==='docCrop'){openEditor(S.doc.pages[ji],{crop:true,aspect:'free'})}
+    else if(act==='calibPrint'){doPrint([{calib:true,items:[]}])}
+    else if(act==='calibReset'){S.calib={sx:100,sy:100,ox:0,oy:0};$('#measX').value='';$('#measY').value=''}
+    fillInputs();save();draw()});
+  $('#opts').addEventListener('change',e=>{const a=e.target.closest('[data-act]');if(!a)return;const act=a.dataset.act,ji=+a.closest('[data-i]')?.dataset.i;
+    if(act==='jobPhoto'){S.pas.jobs[ji].photo=a.value||null}
+    else if(act==='jobSize'){const j=S.pas.jobs[ji];j.size=a.value;const s=PAS_SIZES.find(z=>z[0]===a.value);if(s&&s[1]){j.cw=s[1];j.ch=s[2]}renderJobs()}
+    else if(act==='jobCount'){S.pas.jobs[ji].count=Math.max(0,Math.round(num(a.value)))}
+    else if(act==='jobCW'){S.pas.jobs[ji].cw=num(a.value)}else if(act==='jobCH'){S.pas.jobs[ji].ch=num(a.value)}
+    else if(act==='cardSel'){S.card[a.closest('[data-side]').dataset.side]=a.value||null;renderCardSlots()}
+    else if(act==='docFilter'){const p=photos.get(S.doc.pages[ji]);p.adj.filter=a.value;gbusy(true,'Menerapkan filter…');processPhoto(p).then(()=>{gbusy(false);renderLib();renderDocList();draw()});return}
+    save();draw()});
+  $('#gridAdd').addEventListener('change',e=>{if(e.target.value){S.grid.photos.push(e.target.value);renderGridList();save();draw()}});
+  $('#docAdd').addEventListener('change',e=>{if(e.target.value){S.doc.pages.push(e.target.value);renderDocList();save();draw()}});
+  const calc=()=>{const mx=num($('#measX').value),my=num($('#measY').value);if(mx>50)S.calib.sx=+(100*100/mx).toFixed(2);if(my>50)S.calib.sy=+(100*100/my).toFixed(2);fillInputs();save()};
+  $('#measX').addEventListener('change',calc);$('#measY').addEventListener('change',calc);
+  // library
+  $('#addBtn').addEventListener('click',()=>pickFiles(null));$('#camBtn').addEventListener('click',()=>pickFiles(null,true));
+  const onFiles=e=>{const s=V.pendingSlot;V.pendingSlot=null;addFiles(e.target.files,s)};$('#fileIn').addEventListener('change',onFiles);$('#camIn').addEventListener('change',onFiles);
+  $('#lib').addEventListener('click',e=>{const ph=e.target.closest('.ph');if(!ph)return;const id=ph.dataset.id,b=e.target.closest('[data-lib]');
+    if(b&&b.dataset.lib==='del'){if(b.dataset.armed){removePhoto(id);toast('Foto dihapus')}else{b.dataset.armed='1';b.style.color='var(--danger)';toast('Ketuk ikon hapus sekali lagi untuk menghapus');setTimeout(()=>{delete b.dataset.armed;b.style.color=''},2500)}return}
+    openEditor(id)});
+  const drop=$('#drop');['dragenter','dragover'].forEach(t=>document.addEventListener(t,e=>{if(e.dataTransfer?.types?.includes('Files')){e.preventDefault();drop.classList.add('over')}}));
+  ['dragleave','drop'].forEach(t=>document.addEventListener(t,e=>{if(t==='dragleave'&&e.relatedTarget)return;drop.classList.remove('over')}));
+  document.addEventListener('drop',e=>{if(e.dataTransfer?.files?.length){e.preventDefault();addFiles(e.dataTransfer.files)}});
+  document.addEventListener('paste',e=>{const fs=[...(e.clipboardData?.items||[])].filter(i=>i.kind==='file').map(i=>i.getAsFile()).filter(Boolean);if(fs.length){e.preventDefault();addFiles(fs)}});
+  // sheet
+  $('#sheet').addEventListener('click',e=>{const r=e.target.getBoundingClientRect(),mx=(e.clientX-r.left)/V.pxmm,my=(e.clientY-r.top)/V.pxmm;const pg=V.pages[V.page];if(!pg)return;
+    const it=[...pg.items].reverse().find(i=>mx>=i.x&&mx<=i.x+i.w&&my>=i.y&&my<=i.y+i.h);if(!it)return;
+    if(!it.pid||!photos.has(it.pid)){pickFiles(it.slot);return}
+    if(it.doc){openEditor(it.pid);return}openFramer(it)});
+  $('#prevPg').addEventListener('click',()=>{V.page--;draw()});$('#nextPg').addEventListener('click',()=>{V.page++;draw()});
+  $('#printBtn').addEventListener('click',()=>doPrint(V.pages));$('#pdfBtn').addEventListener('click',exportPdf);
+  $('#pngBtn').addEventListener('click',()=>exportImg('png'));$('#jpgBtn').addEventListener('click',()=>exportImg('jpg'));
+  new ResizeObserver(()=>draw()).observe($('#desk'));
+  document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea')||document.querySelector('dialog[open]'))return;
+    if(e.key==='ArrowRight'){V.page++;draw()}if(e.key==='ArrowLeft'){V.page--;draw()}if((e.ctrlKey||e.metaKey)&&e.key==='p'){e.preventDefault();doPrint(V.pages)}});
+  // tema
+  const applyTheme=()=>{const r=document.documentElement;if(S.theme==='system')r.removeAttribute('data-theme');else r.setAttribute('data-theme',S.theme);
+    $('#themeBtn use').setAttribute('href',S.theme==='light'?'#i-sun':S.theme==='dark'?'#i-moon':'#i-auto');$('#themeBtn').title='Tema: '+({system:'ikuti sistem',light:'terang',dark:'gelap'}[S.theme])};
+  $('#themeBtn').addEventListener('click',()=>{S.theme={system:'light',light:'dark',dark:'system'}[S.theme];applyTheme();save();toast('Tema '+({system:'mengikuti sistem',light:'terang',dark:'gelap'}[S.theme]))});applyTheme();
+  // PWA
+  let deferred=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;$('#installBtn').hidden=false});
+  $('#installBtn').addEventListener('click',async()=>{if(!deferred)return;deferred.prompt();await deferred.userChoice;deferred=null;$('#installBtn').hidden=true});
+  window.addEventListener('appinstalled',()=>{$('#installBtn').hidden=true;toast('Aplikasi terpasang')});
+  if('serviceWorker'in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
+  window.addEventListener('afterprint',()=>{$('#printArea').innerHTML=''})}
+
+bind();bindEditor();bindFramer();setMode(S.mode);refreshAll();
+</script>
+</body>
+</html>

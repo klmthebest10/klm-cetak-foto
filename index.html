@@ -311,6 +311,11 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
       <div class="seg" role="group" aria-label="Orientasi">
         <button data-orient="portrait">Tegak</button><button data-orient="landscape">Mendatar</button>
       </div>
+      <div class="seg" role="group" aria-label="Putar layout">
+        <button id="lrotL" title="Putar layout ke kiri 90°" aria-label="Putar layout ke kiri"><svg class="i"><use href="#i-rl"/></svg></button>
+        <button id="lrotTxt" title="Kembalikan layout ke 0°">Layout 0°</button>
+        <button id="lrotR" title="Putar layout ke kanan 90°" aria-label="Putar layout ke kanan"><svg class="i"><use href="#i-rr"/></svg></button>
+      </div>
       <div class="info" id="info"></div>
     </div>
     <div class="desk" id="desk">
@@ -587,6 +592,7 @@ const ASPECTS={card:85.6/53.98,a4:210/297,f4:215/330,'34':3/4,'23':2/3,'11':1};
 
 /* ============ STATE ============ */
 const DEF={mode:'pas',theme:'system',paper:'A4',orient:'portrait',pw:210,ph:297,margin:6,dpi:300,cut:'bantu',
+  lrot:{pas:0,grid:0,card:0,doc:0},
   frame:{style:'none',color:'#FFFFFF',width:2,radius:0},
   calib:{sx:100,sy:100,ox:0,oy:0},
   pas:{jobs:[{photo:null,size:'3x4',count:4,cw:30,ch:40},{photo:null,size:'2x3',count:4,cw:20,ch:30}],gap:2,align:'left',sort:'1',caption:''},
@@ -858,9 +864,14 @@ function paperDims(){let[w,h]=S.paper==='custom'?[num(S.pw)||210,num(S.ph)||297]
 function pasSize(j){let w,h;if(j.size==='custom'){w=Math.max(5,num(j.cw));h=Math.max(5,num(j.ch))}else{const s=PAS_SIZES.find(z=>z[0]===j.size)||PAS_SIZES[1];w=s[1];h=s[2]}
   if(j.orient==='h'&&h>w)[w,h]=[h,w];if(j.orient==='v'&&w>h)[w,h]=[h,w];return[w,h]}
 function capH(){return S.pas.caption?Math.max(3.5,10*0.3528*1.6):0}
-function fitCount(w,h){const[W,H]=paperDims(),m=num(S.margin),g=num(S.pas.gap),ch=h+capH();return Math.max(0,Math.floor((W-2*m+g)/(w+g)))*Math.max(0,Math.floor((H-2*m+g)/(ch+g)))}
+function lrot(){return((num(S.lrot[S.mode])%360)+360)%360}
+function layoutDims(){const[W,H]=paperDims();return lrot()%180?[H,W]:[W,H]}
+function applyLRot(ctx,k){const[W,H]=paperDims(),r=lrot();
+  if(r===90){ctx.translate(W*k,0);ctx.rotate(Math.PI/2)}else if(r===180){ctx.translate(W*k,H*k);ctx.rotate(Math.PI)}else if(r===270){ctx.translate(0,H*k);ctx.rotate(-Math.PI/2)}}
+function toLayout(px,py){const[W,H]=paperDims(),r=lrot();return r===90?[py,W-px]:r===180?[W-px,H-py]:r===270?[H-py,px]:[px,py]}
+function fitCount(w,h){const[W,H]=layoutDims(),m=num(S.margin),g=num(S.pas.gap),ch=h+capH();return Math.max(0,Math.floor((W-2*m+g)/(w+g)))*Math.max(0,Math.floor((H-2*m+g)/(ch+g)))}
 function layoutPas(over){
-  const[W,H]=paperDims(),m=num(S.margin),g=num(S.pas.gap),cH=capH();
+  const[W,H]=layoutDims(),m=num(S.margin),g=num(S.pas.gap),cH=capH();
   let jobs=(over||S.pas.jobs).map((j,i)=>({j,i,sz:pasSize(j)}));
   if(S.pas.sort==='1')jobs=jobs.slice().sort((a,b)=>b.sz[1]-a.sz[1]||b.sz[0]-a.sz[0]);
   const pages=[];let pg={items:[]},x=m,y=m,rowH=0;
@@ -875,7 +886,7 @@ function layoutPas(over){
   if(S.pas.align==='center')for(const p of pages){if(!p.items.length)continue;const r=Math.max(...p.items.map(it=>it.x+it.w));const dx=(W-2*m-(r-m))/2;p.items.forEach(it=>it.x+=dx)}
   return pages.filter((p,i)=>p.items.length||i===0)}
 function layoutGrid(){
-  const[W,H]=paperDims(),m=num(S.margin),G=S.grid,g=num(G.gap),cols=Math.max(1,Math.round(num(G.cols))),rows=Math.max(1,Math.round(num(G.rows)));
+  const[W,H]=layoutDims(),m=num(S.margin),G=S.grid,g=num(G.gap),cols=Math.max(1,Math.round(num(G.cols))),rows=Math.max(1,Math.round(num(G.rows)));
   const cw=(W-2*m-(cols-1)*g)/cols,ch=(H-2*m-(rows-1)*g)/rows,cap=G.caption?num(G.capSize)*0.3528*1.7:0,per=cols*rows;
   const list=G.photos.length?G.photos:[null];let n,pick;
   if(G.source==='seq'){n=Math.max(1,Math.ceil(list.length/per));pick=k=>k<list.length?list[k]:undefined}else{n=Math.max(1,Math.round(num(G.pages)));pick=()=>list[0]}
@@ -887,7 +898,7 @@ function layoutGrid(){
 function cardSize(){const t=CARD_TYPES[S.card.type]||CARD_TYPES.ktp;let[w,h]=S.card.type==='custom'?[Math.max(10,num(S.card.cw)),Math.max(10,num(S.card.ch))]:[t[0],t[1]];
   if(S.card.orient==='v'&&w>h)[w,h]=[h,w];if(S.card.orient==='h'&&h>w)[w,h]=[h,w];return[w,h]}
 function layoutCard(){
-  const[W,H]=paperDims(),m=num(S.margin),C=S.card,sc=num(C.scale)/100,[cw0,ch0]=cardSize(),w=cw0*sc,h=ch0*sc,g=num(C.gap);
+  const[W,H]=layoutDims(),m=num(S.margin),C=S.card,sc=num(C.scale)/100,[cw0,ch0]=cardSize(),w=cw0*sc,h=ch0*sc,g=num(C.gap);
   const side=C.layout==='side',bw=side?2*w+g:w,bh=side?h:2*h+g,gb=8;
   const cols=Math.max(1,Math.floor((W-2*m+gb)/(bw+gb))),rows=Math.max(1,Math.floor((H-2*m+gb)/(bh+gb))),per=cols*rows;
   const copies=Math.max(1,Math.round(num(C.copies))),pages=[];
@@ -901,7 +912,7 @@ function layoutCard(){
     pages[pi].items.push({...base,pid:C.back,x:side?bx+w+g:bx,y:side?by:by+h+g,slot:{kind:'card',side:'back'},label:'BELAKANG'})}
   return pages}
 function layoutDoc(){
-  const[W,H]=paperDims(),m=num(S.margin),D=S.doc,per=num(D.per)||1,sc=num(D.scale)/100;
+  const[W,H]=layoutDims(),m=num(S.margin),D=S.doc,per=num(D.per)||1,sc=num(D.scale)/100;
   let slots;const aw=W-2*m,ah=H-2*m,g=6;
   if(per===1)slots=[[m,m,aw,ah]];
   else if(per===2)slots=W<=H?[[m,m,aw,(ah-g)/2],[m,m+(ah+g)/2,aw,(ah-g)/2]]:[[m,m,(aw-g)/2,ah],[m+(aw+g)/2,m,(aw-g)/2,ah]];
@@ -989,9 +1000,11 @@ function drawPage(ctx,page,k,preview){
   const[W,H]=paperDims();ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,W*k,H*k);
   if(page.calib){drawCalib(ctx,k,W,H);return}
   if(preview&&num(S.margin)>0){ctx.save();ctx.strokeStyle='rgba(91,141,239,.35)';ctx.setLineDash([5,5]);ctx.lineWidth=1;const m=num(S.margin)*k;ctx.strokeRect(m,m,W*k-2*m,H*k-2*m);ctx.restore()}
-  drawCuts(ctx,page,k,W,H,'under');
+  const[LW,LH]=layoutDims();ctx.save();applyLRot(ctx,k);
+  drawCuts(ctx,page,k,LW,LH,'under');
   for(const it of page.items)drawItem(ctx,it,k,preview);
-  drawCuts(ctx,page,k,W,H,'over')}
+  drawCuts(ctx,page,k,LW,LH,'over');ctx.restore();
+  if(preview&&lrot()){ctx.save();const t=lrot()+'°';ctx.font='800 12px Nunito,sans-serif';const tw=ctx.measureText(t).width+16;ctx.fillStyle='rgba(255,107,74,.92)';rr(ctx,W*k-tw-6,6,tw,20,10);ctx.fill();ctx.fillStyle='#fff';ctx.textBaseline='middle';ctx.fillText(t,W*k-tw+2,16);ctx.restore()}}
 let rafD=0;function draw(){cancelAnimationFrame(rafD);rafD=requestAnimationFrame(drawNow)}
 function drawNow(){
   const pages=layout();V.pages=pages;if(V.page>=pages.length)V.page=pages.length-1;if(V.page<0)V.page=0;
@@ -1049,6 +1062,7 @@ function fillInputs(){
   $$('[data-k]').forEach(el=>{const v=getP(S,el.dataset.k);if(el.type==='checkbox')el.checked=!!v;else if(document.activeElement!==el)el.value=v});
   $$('[data-out]').forEach(el=>{const inp=$(`[data-k="${el.dataset.out}"]`);el.textContent=fmt(getP(S,el.dataset.out))+' '+(inp?.dataset.unit||'')});
   $$('[data-orient]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.orient===S.orient));
+  $('#lrotTxt').textContent='Layout '+lrot()+'°';$('#lrotTxt').setAttribute('aria-pressed',lrot()!==0);
   $$('[data-show="paper.custom"]').forEach(e=>e.hidden=S.paper!=='custom');
   $$('[data-show="card.custom"]').forEach(e=>e.hidden=S.card.type!=='custom');
   $$('[data-show="frame"]').forEach(e=>e.hidden=!(S.mode==='pas'||S.mode==='grid'));
@@ -1234,6 +1248,8 @@ function bind(){
   document.addEventListener('input',e=>{const el=e.target;if(el.matches('[data-k]')&&!el.closest('dialog'))onK(el)});
   document.addEventListener('change',e=>{const el=e.target;if(el.matches('select[data-k],input[type=checkbox][data-k]')&&!el.closest('dialog'))onK(el);if(el.id==='fcolPick'){S.frame.color=el.value.toUpperCase();if(S.frame.style==='none')S.frame.style='putih';fillInputs();save();draw()}});
   $$('[data-orient]').forEach(b=>b.addEventListener('click',()=>{S.orient=b.dataset.orient;fillInputs();save();draw()}));
+  const setLR=v=>{S.lrot[S.mode]=((v%360)+360)%360;V.page=0;fillInputs();save();draw();toast('Layout diputar '+lrot()+'°')};
+  $('#lrotL').addEventListener('click',()=>setLR(lrot()-90));$('#lrotR').addEventListener('click',()=>setLR(lrot()+90));$('#lrotTxt').addEventListener('click',()=>setLR(0));
   $('#paperSel').innerHTML=Object.entries(PAPERS).map(([k,v])=>`<option value="${k}">${v[2]}</option>`).join('');
   $('#cardType').innerHTML=Object.entries(CARD_TYPES).map(([k,v])=>`<option value="${k}">${v[2]}</option>`).join('');
   $('#pasPresets').innerHTML=PAS_PRESETS.map((p,i)=>`<button data-pp="${i}">${p[0]}</button>`).join('');
@@ -1298,7 +1314,7 @@ function bind(){
   document.addEventListener('drop',e=>{if(e.dataTransfer?.files?.length){e.preventDefault();addFiles(e.dataTransfer.files)}});
   document.addEventListener('paste',e=>{const fs=[...(e.clipboardData?.items||[])].filter(i=>i.kind==='file').map(i=>i.getAsFile()).filter(Boolean);if(fs.length){e.preventDefault();addFiles(fs)}});
   // sheet
-  $('#sheet').addEventListener('click',e=>{const r=e.target.getBoundingClientRect(),mx=(e.clientX-r.left)/V.pxmm,my=(e.clientY-r.top)/V.pxmm;const pg=V.pages[V.page];if(!pg)return;
+  $('#sheet').addEventListener('click',e=>{const r=e.target.getBoundingClientRect(),[mx,my]=toLayout((e.clientX-r.left)/V.pxmm,(e.clientY-r.top)/V.pxmm);const pg=V.pages[V.page];if(!pg)return;
     const it=[...pg.items].reverse().find(i=>mx>=i.x&&mx<=i.x+i.w&&my>=i.y&&my<=i.y+i.h);if(!it)return;
     if(!it.pid||!photos.has(it.pid)){pickFiles(it.slot);return}
     openFramer(it)});

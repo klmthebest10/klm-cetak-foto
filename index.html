@@ -397,6 +397,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
         </div>
         <div class="sec"><h3><span class="dot s"></span>Penempatan</h3>
           <div class="row2">
+            <label class="fld"><span>Arah kartu</span><select data-k="card.orient"><option value="auto">Sesuai jenis</option><option value="h">Mendatar</option><option value="v">Tegak</option></select></label>
             <label class="fld"><span>Susunan</span><select data-k="card.layout"><option value="stack">Atas–bawah</option><option value="side">Kiri–kanan</option></select></label>
             <label class="fld"><span>Letak di kertas</span><select data-k="card.pos"><option value="top">Atas</option><option value="center">Tengah</option></select></label>
           </div>
@@ -482,7 +483,8 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
       <div class="ed-bar" id="edBarView">
         <button class="btn sm icon" data-ed-act="rotL" title="Putar kiri" aria-label="Putar kiri"><svg class="i"><use href="#i-rl"/></svg></button>
         <button class="btn sm icon" data-ed-act="rotR" title="Putar kanan" aria-label="Putar kanan"><svg class="i"><use href="#i-rr"/></svg></button>
-        <button class="btn sm icon" data-ed-act="flip" title="Cermin" aria-label="Cermin"><svg class="i"><use href="#i-flip"/></svg></button>
+        <button class="btn sm icon" data-ed-act="flip" title="Cermin kiri-kanan" aria-label="Cermin kiri-kanan"><svg class="i"><use href="#i-flip"/></svg></button>
+        <button class="btn sm icon" data-ed-act="flipV" title="Balik atas-bawah" aria-label="Balik atas-bawah"><svg class="i" style="transform:rotate(90deg)"><use href="#i-flip"/></svg></button>
         <button class="btn sm" data-ed-act="crop"><svg class="i"><use href="#i-crop"/></svg>Potong &amp; luruskan</button>
         <button class="btn sm ghost" id="cmpBtn"><svg class="i"><use href="#i-eye"/></svg>Tahan: lihat asli</button>
       </div>
@@ -502,6 +504,10 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
       <div class="sec">
         <button class="btn primary" data-ed-act="auto"><svg class="i"><use href="#i-magic"/></svg>Perbaiki otomatis</button>
         <p class="note">Meratakan warna pudar, mengurangi noise, memperbesar resolusi foto kecil, dan mempertajam detail. Semua diproses di perangkat ini.</p>
+      </div>
+      <div class="sec"><h3><span class="dot s"></span>Putar &amp; kemiringan</h3>
+        <label class="fld"><span>Kemiringan (luruskan foto miring) <b data-edout="tilt"></b></span><input type="range" min="-45" max="45" step="0.5" data-ed="tilt"></label>
+        <p class="note">Tombol putar 90° dan cermin ada di atas gambar. Arah tegak/mendatar tiap foto di lembar diatur dengan mengetuk fotonya.</p>
       </div>
       <div class="sec"><h3><span class="dot"></span>Kualitas &amp; ketajaman</h3>
         <label class="fld"><span>Pertajam <b data-edout="adj.sharp"></b></span><input type="range" min="0" max="100" data-ed="adj.sharp"></label>
@@ -538,6 +544,12 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
   <div class="fr-wrap">
     <canvas id="frCanvas"></canvas>
     <label class="fld"><span>Perbesar <b id="frZoomTxt"></b></span><input type="range" id="frZoom" min="1" max="4" step="0.01"></label>
+    <div class="row3" style="width:100%">
+      <button class="btn sm" id="frRotL"><svg class="i"><use href="#i-rl"/></svg>Putar</button>
+      <button class="btn sm" id="frRotR"><svg class="i"><use href="#i-rr"/></svg>Putar</button>
+      <button class="btn sm sun" id="frBox">Tegak ⇄ Datar</button>
+    </div>
+    <label class="fld"><span>Kemiringan <b id="frTiltTxt">0°</b></span><input type="range" id="frTilt" min="-45" max="45" step="0.5"></label>
     <label class="check" id="frGuideWrap"><input type="checkbox" id="frGuide" checked>Tampilkan panduan wajah pas foto</label>
     <p class="note">Geser foto dengan jari atau mouse. Posisi ini dipakai untuk semua foto berukuran sama.</p>
   </div>
@@ -579,7 +591,7 @@ const DEF={mode:'pas',theme:'system',paper:'A4',orient:'portrait',pw:210,ph:297,
   calib:{sx:100,sy:100,ox:0,oy:0},
   pas:{jobs:[{photo:null,size:'3x4',count:4,cw:30,ch:40},{photo:null,size:'2x3',count:4,cw:20,ch:30}],gap:2,align:'left',sort:'1',caption:''},
   grid:{rows:3,cols:2,gap:4,fit:'cover',source:'repeat',autorot:true,photos:[],pages:1,caption:'',capSize:10},
-  card:{type:'ktp',cw:85.6,ch:53.98,front:null,back:null,layout:'stack',pos:'top',scale:'100',copies:1,gap:10,radius:3,gray:false,outline:true},
+  card:{type:'ktp',orient:'auto',cw:85.6,ch:53.98,front:null,back:null,layout:'stack',pos:'top',scale:'100',copies:1,gap:10,radius:3,gray:false,outline:true},
   doc:{pages:[],per:'1',fit:'contain',scale:100,autorot:true,outline:false}};
 function clone(o){return JSON.parse(JSON.stringify(o))}
 function merge(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&a[k]&&typeof a[k]==='object')merge(a[k],b[k]);else if(k in a)a[k]=b[k]}return a}
@@ -797,15 +809,17 @@ function scaledData(c,w,h){const t=cv(w,h),x=ctx2(t);x.imageSmoothingQuality='hi
 function newPhoto(img,name){
   const k=Math.min(1,3200/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
   const o=cv((img.naturalWidth||img.width)*k,(img.naturalHeight||img.height)*k);const x=o.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(img,0,0,o.width,o.height);
-  const p={id:'f'+(++seq),name:(name||'Foto '+seq).replace(/\.[^.]+$/,''),orig:o,rot:0,flip:false,warp:null,warpAspect:'free',
+  const p={id:'f'+(++seq),name:(name||'Foto '+seq).replace(/\.[^.]+$/,''),orig:o,rot:0,flip:false,flipV:false,tilt:0,warp:null,warpAspect:'free',
     adj:{bright:0,contrast:0,sat:0,warm:0,sharp:0,denoise:0,smooth:0,upscale:'1',auto:false,filter:'none'},
     bg:{on:false,color:'#C8102E',method:'ai',tol:28,feather:1,hair:70},framing:{},out:null,thumb:''};
   photos.set(p.id,p);return p}
-function rotated(p){const key=p.rot+'|'+p.flip;if(p._rot&&p._rotKey===key)return p._rot;
+function rotated(p){const tl=num(p.tilt),key=p.rot+'|'+p.flip+'|'+!!p.flipV+'|'+tl;if(p._rot&&p._rotKey===key)return p._rot;
   const o=p.orig,sw=p.rot%180!==0,c=cv(sw?o.height:o.width,sw?o.width:o.height),x=c.getContext('2d');
-  x.translate(c.width/2,c.height/2);if(p.flip)x.scale(-1,1);x.rotate(p.rot*Math.PI/180);x.drawImage(o,-o.width/2,-o.height/2);
+  x.translate(c.width/2,c.height/2);x.scale(p.flip?-1:1,p.flipV?-1:1);x.rotate(p.rot*Math.PI/180);
+  if(tl){const t=Math.abs(tl)*Math.PI/180,W=c.width,H=c.height,k=Math.cos(t)+Math.sin(t)*Math.max(W/H,H/W);x.rotate(tl*Math.PI/180);x.scale(k,k)}
+  x.imageSmoothingQuality='high';x.drawImage(o,-o.width/2,-o.height/2);
   p._rot=c;p._rotKey=key;return c}
-function geo(p){const key=p.rot+'|'+p.flip+'|'+JSON.stringify(p.warp)+'|'+p.warpAspect;if(p._geo&&p._geoKey===key)return p._geo;
+function geo(p){const key=p.rot+'|'+p.flip+'|'+!!p.flipV+'|'+num(p.tilt)+'|'+JSON.stringify(p.warp)+'|'+p.warpAspect;if(p._geo&&p._geoKey===key)return p._geo;
   const r=rotated(p);p._geo=p.warp?warpQuad(r,p.warp,p.warpAspect):r;p._geoKey=key;return p._geo}
 async function processPhoto(p){try{return await processPhotoRaw(p)}catch(e){console.error(e);toast('Foto terlalu besar atau gagal diproses. Coba kurangi "Perbesar resolusi".',4000);return null}}
 async function processPhotoRaw(p){
@@ -841,7 +855,8 @@ function grayOf(p){if(p._gray&&p._grayOf===p.out)return p._gray;const c=cv(p.out
 
 /* ============ LAYOUT (satuan mm) ============ */
 function paperDims(){let[w,h]=S.paper==='custom'?[num(S.pw)||210,num(S.ph)||297]:PAPERS[S.paper];if(S.orient==='landscape')[w,h]=[Math.max(w,h),Math.min(w,h)];else[w,h]=[Math.min(w,h),Math.max(w,h)];return[w,h]}
-function pasSize(j){if(j.size==='custom')return[Math.max(5,num(j.cw)),Math.max(5,num(j.ch))];const s=PAS_SIZES.find(z=>z[0]===j.size)||PAS_SIZES[1];return[s[1],s[2]]}
+function pasSize(j){let w,h;if(j.size==='custom'){w=Math.max(5,num(j.cw));h=Math.max(5,num(j.ch))}else{const s=PAS_SIZES.find(z=>z[0]===j.size)||PAS_SIZES[1];w=s[1];h=s[2]}
+  if(j.orient==='h'&&h>w)[w,h]=[h,w];if(j.orient==='v'&&w>h)[w,h]=[h,w];return[w,h]}
 function capH(){return S.pas.caption?Math.max(3.5,10*0.3528*1.6):0}
 function fitCount(w,h){const[W,H]=paperDims(),m=num(S.margin),g=num(S.pas.gap),ch=h+capH();return Math.max(0,Math.floor((W-2*m+g)/(w+g)))*Math.max(0,Math.floor((H-2*m+g)/(ch+g)))}
 function layoutPas(over){
@@ -869,7 +884,8 @@ function layoutGrid(){
     pg.items.push({pid,x:m+c*(cw+g),y:m+r*(ch+g),w:cw,h:Math.max(1,ch-cap),fit:G.fit,autorot:G.autorot,frame:S.frame,caption:G.caption,capSize:num(G.capSize),slot:{kind:'grid',i:G.source==='seq'?k:0}})}
     pages.push(pg)}
   return pages}
-function cardSize(){const t=CARD_TYPES[S.card.type]||CARD_TYPES.ktp;return S.card.type==='custom'?[Math.max(10,num(S.card.cw)),Math.max(10,num(S.card.ch))]:[t[0],t[1]]}
+function cardSize(){const t=CARD_TYPES[S.card.type]||CARD_TYPES.ktp;let[w,h]=S.card.type==='custom'?[Math.max(10,num(S.card.cw)),Math.max(10,num(S.card.ch))]:[t[0],t[1]];
+  if(S.card.orient==='v'&&w>h)[w,h]=[h,w];if(S.card.orient==='h'&&h>w)[w,h]=[h,w];return[w,h]}
 function layoutCard(){
   const[W,H]=paperDims(),m=num(S.margin),C=S.card,sc=num(C.scale)/100,[cw0,ch0]=cardSize(),w=cw0*sc,h=ch0*sc,g=num(C.gap);
   const side=C.layout==='side',bw=side?2*w+g:w,bh=side?h:2*h+g,gb=8;
@@ -899,15 +915,22 @@ function layout(){return S.mode==='pas'?layoutPas():S.mode==='grid'?layoutGrid()
 /* ============ RENDER ============ */
 function rr(ctx,x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h/2));ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
 function aspectKey(w,h){return(w/h).toFixed(3)}
-function fitParams(img,w,h,o){const iw=img.width,ih=img.height;
-  const rot=!!o.autorot&&((w>h)!==(iw>ih))&&Math.abs(w/h-1)>0.06&&Math.abs(iw/ih-1)>0.06;
-  const W=rot?h:w,H=rot?w:h;const s=(o.fit==='contain'?Math.min(W/iw,H/ih):Math.max(W/iw,H/ih))*(o.zoom||1);return{rot,W,H,s,iw,ih}}
+const _rc=new WeakMap();
+function rotImg(img,deg){deg=((deg%360)+360)%360;if(!deg)return img;let m=_rc.get(img);if(!m){m={};_rc.set(img,m)}if(m[deg])return m[deg];
+  const sw=deg%180!==0,c=cv(sw?img.height:img.width,sw?img.width:img.height),x=c.getContext('2d');x.translate(c.width/2,c.height/2);x.rotate(deg*Math.PI/180);x.drawImage(img,-img.width/2,-img.height/2);return m[deg]=c}
+function fitParams(img0,w,h,o){const img=o.rot!=null?rotImg(img0,o.rot):img0,iw=img.width,ih=img.height;
+  const rot=o.rot==null&&!!o.autorot&&((w>h)!==(iw>ih))&&Math.abs(w/h-1)>0.06&&Math.abs(iw/ih-1)>0.06;
+  const W=rot?h:w,H=rot?w:h;const s=(o.fit==='contain'?Math.min(W/iw,H/ih):Math.max(W/iw,H/ih))*(o.zoom||1);return{rot,W,H,s,iw,ih,img}}
 function clampFraming(fr,fp){if(fp.iw*fp.s>=fp.W){const a=fp.W/(2*fp.iw*fp.s);fr.cx=Math.min(1-a,Math.max(a,fr.cx))}else fr.cx=.5;
   if(fp.ih*fp.s>=fp.H){const b=fp.H/(2*fp.ih*fp.s);fr.cy=Math.min(1-b,Math.max(b,fr.cy))}else fr.cy=.5;return fr}
 function drawImageInRect(ctx,img,x,y,w,h,o){
   const fp=fitParams(img,w,h,o);const cx=o.cx??.5,cy=o.cy??.5;
   ctx.save();ctx.translate(x+w/2,y+h/2);if(fp.rot)ctx.rotate(-Math.PI/2);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-  ctx.drawImage(img,-cx*fp.iw*fp.s,-cy*fp.ih*fp.s,fp.iw*fp.s,fp.ih*fp.s);ctx.restore()}
+  ctx.drawImage(fp.img,-cx*fp.iw*fp.s,-cy*fp.ih*fp.s,fp.iw*fp.s,fp.ih*fp.s);ctx.restore()}
+function curRotOf(p,it,fr){if(fr.rot!=null)return fr.rot;const fp=fitParams(p.out||geo(p),it.w,it.h,{fit:it.fit,autorot:it.autorot});return fp.rot?270:0}
+function rotateContent(pid,dir,filter){const p=photos.get(pid);if(!p)return;const done=new Set();
+  V.pages.forEach(pg=>pg.items.forEach(it=>{if(it.pid!==pid||(filter&&!filter(it)))return;const k=aspectKey(it.w,it.h);if(done.has(k))return;done.add(k);
+    const fr=framingFor(p,it);fr.rot=(curRotOf(p,it,fr)+dir+360)%360;fr.cx=.5;fr.cy=.5;p.framing[k]=fr}));draw()}
 function framingFor(p,it){const fr=p.framing[aspectKey(it.w,it.h)];return fr?{...fr}:{zoom:1,cx:.5,cy:.5}}
 function innerRect(it,k){const fr=it.frame||{style:'none'},bw=(num(fr.width)||0)*k;let x=it.x*k,y=it.y*k,w=it.w*k,h=it.h*k;
   if(fr.style==='putih'||fr.style==='gelombang'){x+=bw;y+=bw;w-=2*bw;h-=2*bw}
@@ -1001,6 +1024,8 @@ function renderJobs(){
   $('#jobs').innerHTML=S.pas.jobs.map((j,i)=>{const[w,h]=pasSize(j);return `<div class="job" data-i="${i}">
     <div class="l1"><select data-act="jobPhoto" aria-label="Foto">${photoOpts(j.photo)}</select>
     <select data-act="jobSize" aria-label="Ukuran">${PAS_SIZES.map(s=>`<option value="${s[0]}"${s[0]===j.size?' selected':''}>${s[3]}</option>`).join('')}</select></div>
+    <div class="l1"><select data-act="jobOrient" aria-label="Arah foto"><option value="v"${j.orient!=='h'?' selected':''}>Tegak (potret)</option><option value="h"${j.orient==='h'?' selected':''}>Mendatar (lanskap)</option></select>
+    <button class="btn sm ghost" data-act="jobRot">${icon('i-rr')}Putar isi</button></div>
     ${j.size==='custom'?`<div class="l1"><input type="number" step="1" data-act="jobCW" value="${j.cw}" aria-label="Lebar mm" placeholder="lebar mm"><input type="number" step="1" data-act="jobCH" value="${j.ch}" aria-label="Tinggi mm" placeholder="tinggi mm"></div>`:''}
     <div class="l2"><div class="stepper"><button data-act="jobDec" aria-label="Kurangi">−</button><input type="number" min="0" data-act="jobCount" value="${j.count<0?fitCount(w,h):j.count}" aria-label="Jumlah"><button data-act="jobInc" aria-label="Tambah">+</button></div>
     <button class="btn sm ghost" data-act="jobMax">Penuhi lembar</button><button class="btn sm ghost icon" data-act="jobDel" aria-label="Hapus ukuran">${icon('i-trash')}</button></div></div>`}).join('')}
@@ -1013,7 +1038,7 @@ function renderCardSlots(){
   const C=S.card;$('#cardSlots').innerHTML=[['front','Depan'],['back','Belakang']].map(([sd,lb])=>{const p=photos.get(C[sd]);
     return `<div class="slot" data-side="${sd}"><div class="lbl">${lb}</div><div class="thumb" data-act="cardUp">${p&&p.thumb?`<img src="${p.thumb}" alt="">`:'Ketuk untuk<br>unggah foto'}</div>
     <select data-act="cardSel" aria-label="Foto ${lb}">${photoOpts(C[sd])}</select>
-    <div class="acts"><button class="btn sm" data-act="cardCrop"${p?'':' disabled'}>${icon('i-crop')}Luruskan</button><button class="btn sm icon ghost" data-act="cardEdit"${p?'':' disabled'} aria-label="Edit">${icon('i-edit')}</button><button class="btn sm icon ghost" data-act="cardDel"${p?'':' disabled'} aria-label="Hapus" title="Hapus">${icon('i-trash')}</button></div></div>`}).join('')}
+    <div class="acts"><button class="btn sm icon ghost" data-act="cardRot"${p?'':' disabled'} title="Putar isi 90°" aria-label="Putar">${icon('i-rr')}</button><button class="btn sm" data-act="cardCrop"${p?'':' disabled'}>${icon('i-crop')}Luruskan</button><button class="btn sm icon ghost" data-act="cardEdit"${p?'':' disabled'} aria-label="Edit">${icon('i-edit')}</button><button class="btn sm icon ghost" data-act="cardDel"${p?'':' disabled'} aria-label="Hapus" title="Hapus">${icon('i-trash')}</button></div></div>`}).join('')}
 function renderDocList(){
   const D=S.doc;$('#docList').innerHTML=D.pages.length?D.pages.map((id,i)=>{const p=photos.get(id);if(!p)return'';return `<div class="it" data-i="${i}">${thumbHtml(p)}<div style="min-width:0"><div class="nm">${i+1}. ${esc(p.name)}</div>
     <select data-act="docFilter" aria-label="Filter">${FILTERS.map(f=>`<option value="${f[0]}"${p.adj.filter===f[0]?' selected':''}>${f[1]}</option>`).join('')}</select></div>
@@ -1112,7 +1137,7 @@ function bindEditor(){
   const up=()=>{if(E.drag>=0){E.drag=-1;drawEditor()}};c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
   const cmp=$('#cmpBtn');const on=e=>{e.preventDefault();E.cmp=true;drawEditor()},off=()=>{if(E.cmp){E.cmp=false;drawEditor()}};
   cmp.addEventListener('pointerdown',on);cmp.addEventListener('pointerup',off);cmp.addEventListener('pointerleave',off);cmp.addEventListener('pointercancel',off);
-  $('#editor').addEventListener('input',e=>{const el=e.target.closest('[data-ed]');if(el){const p=E.p;let v=el.type==='checkbox'?el.checked:(el.type==='range'?num(el.value):el.value);setP(p,el.dataset.ed,v);
+  $('#editor').addEventListener('input',e=>{const el=e.target.closest('[data-ed]');if(el){const p=E.p;let v=el.type==='checkbox'?el.checked:(el.type==='range'?num(el.value):el.value);setP(p,el.dataset.ed,v);if(el.dataset.ed==='tilt'){p.warp=null}
       $$(`[data-edout="${el.dataset.ed}"]`).forEach(o=>o.textContent=v);if(el.dataset.ed==='bg.method')$('#tolFld').hidden=v!=='flood';reprocess();return}
     if(e.target.id==='bgPick'){E.p.bg.color=e.target.value.toUpperCase();E.p.bg.on=true;$$('#bgSw .sw').forEach(b=>b.classList.remove('on'));$('[data-ed="bg.on"]').checked=true;reprocess()}});
   $('#editor').addEventListener('change',e=>{if(e.target.matches('select[data-ed],input[type=checkbox][data-ed]'))reprocess()});
@@ -1122,6 +1147,7 @@ function bindEditor(){
     const a=e.target.closest('[data-ed-act]');if(!a)return;const act=a.dataset.edAct;
     if(act==='rotL'||act==='rotR'){p.rot=(p.rot+(act==='rotL'?270:90))%360;p.warp=null;p.framing={};reprocess(true)}
     else if(act==='flip'){p.flip=!p.flip;p.warp=null;reprocess(true)}
+    else if(act==='flipV'){p.flipV=!p.flipV;p.warp=null;reprocess(true)}
     else if(act==='crop')setEdMode('crop');
     else if(act==='cropCancel')setEdMode('view');
     else if(act==='cropFull'){E.quad=[[0,0],[1,0],[1,1],[0,1]];drawEditor()}
@@ -1129,18 +1155,19 @@ function bindEditor(){
     else if(act==='cropApply'){p.warp=E.quad.map(q=>q.slice());p.warpAspect=$('#cropAspect').value;p.framing={};setEdMode('view');edBusy(true,'Meluruskan…');setTimeout(()=>reprocess(true),30)}
     else if(act==='auto'){const g=geo(p),big=Math.max(g.width,g.height);Object.assign(p.adj,{auto:true,denoise:Math.max(p.adj.denoise,22),sharp:Math.max(p.adj.sharp,40),upscale:big<900?'3':big<1500?'2':p.adj.upscale});fillEditor();reprocess(true);toast('Perbaikan otomatis diterapkan')}});
   $('#edDone').addEventListener('click',()=>{$('#editor').close()});
-  $('#edReset').addEventListener('click',()=>{const p=E.p;p.rot=0;p.flip=false;p.warp=null;p.framing={};p.adj={bright:0,contrast:0,sat:0,warm:0,sharp:0,denoise:0,smooth:0,upscale:'1',auto:false,filter:'none'};p.bg.on=false;fillEditor();setEdMode('view');reprocess(true)});
+  $('#edReset').addEventListener('click',()=>{const p=E.p;p.rot=0;p.flip=false;p.flipV=false;p.tilt=0;p.warp=null;p.framing={};p.adj={bright:0,contrast:0,sat:0,warm:0,sharp:0,denoise:0,smooth:0,upscale:'1',auto:false,filter:'none'};p.bg.on=false;fillEditor();setEdMode('view');reprocess(true)});
   $('#editor').addEventListener('close',()=>{E.mode='view';renderLib();renderPanels();draw()});
   new ResizeObserver(()=>drawEditor()).observe($('#edWrap'))}
 
 /* ============ ATUR POSISI (FRAMER) ============ */
 const F={p:null,it:null,fr:null,drag:null};
 function openFramer(it){const p=photos.get(it.pid);if(!p||!p.out){if(p)toast('Foto masih diproses…');return}
-  F.p=p;F.it=it;F.fr=framingFor(p,it);$('#frGuideWrap').hidden=!it.guide;$('#frZoom').value=F.fr.zoom;$('#framer').showModal();drawFramer()}
+  F.p=p;F.it=it;F.fr=framingFor(p,it);$('#frGuideWrap').hidden=!it.guide;$('#frZoom').value=F.fr.zoom;$('#frTilt').value=num(p.tilt);$('#frTiltTxt').textContent=fmt(num(p.tilt))+'°';
+  if(!$('#framer').open)$('#framer').showModal();drawFramer()}
 function frSize(){const it=F.it,mx=Math.min(360,window.innerWidth-80),my=Math.min(420,window.innerHeight-330);const s=Math.min(mx/it.w,my/it.h);return[it.w*s,it.h*s]}
 function drawFramer(){const c=$('#frCanvas'),[w,h]=frSize(),dpr=Math.min(2,devicePixelRatio||1);c.width=w*dpr;c.height=h*dpr;c.style.width=w+'px';c.style.height=h+'px';
   const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.fillStyle='#fff';x.fillRect(0,0,w,h);
-  const fp=fitParams(F.p.out,w,h,{fit:F.it.fit,autorot:F.it.autorot,zoom:F.fr.zoom});clampFraming(F.fr,fp);
+  const fp=fitParams(F.p.out,w,h,{fit:F.it.fit,autorot:F.it.autorot,zoom:F.fr.zoom,rot:F.fr.rot});clampFraming(F.fr,fp);
   drawImageInRect(x,F.p.out,0,0,w,h,{fit:F.it.fit,autorot:F.it.autorot,...F.fr});
   if(F.it.guide&&$('#frGuide').checked){x.save();x.strokeStyle='rgba(255,107,74,.9)';x.lineWidth=2;x.setLineDash([6,5]);
     x.beginPath();x.ellipse(w/2,h*0.46,w*0.28,h*0.29,0,0,7);x.stroke();
@@ -1151,13 +1178,25 @@ function saveFraming(){F.p.framing[aspectKey(F.it.w,F.it.h)]={...F.fr};draw()}
 function bindFramer(){const c=$('#frCanvas');
   c.addEventListener('pointerdown',e=>{F.drag=[e.clientX,e.clientY];c.setPointerCapture(e.pointerId);c.style.cursor='grabbing'});
   c.addEventListener('pointermove',e=>{if(!F.drag)return;const dx=e.clientX-F.drag[0],dy=e.clientY-F.drag[1];F.drag=[e.clientX,e.clientY];
-    const[w,h]=frSize(),fp=fitParams(F.p.out,w,h,{fit:F.it.fit,autorot:F.it.autorot,zoom:F.fr.zoom});
+    const[w,h]=frSize(),fp=fitParams(F.p.out,w,h,{fit:F.it.fit,autorot:F.it.autorot,zoom:F.fr.zoom,rot:F.fr.rot});
     if(fp.rot){F.fr.cx+=dy/(fp.iw*fp.s);F.fr.cy-=dx/(fp.ih*fp.s)}else{F.fr.cx-=dx/(fp.iw*fp.s);F.fr.cy-=dy/(fp.ih*fp.s)}drawFramer();saveFraming()});
   const up=()=>{F.drag=null;c.style.cursor='grab'};c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
   c.addEventListener('wheel',e=>{e.preventDefault();F.fr.zoom=Math.min(4,Math.max(1,F.fr.zoom*(e.deltaY<0?1.06:1/1.06)));$('#frZoom').value=F.fr.zoom;drawFramer();saveFraming()},{passive:false});
   $('#frZoom').addEventListener('input',e=>{F.fr.zoom=num(e.target.value);drawFramer();saveFraming()});
   $('#frGuide').addEventListener('change',drawFramer);
   $('#frReset').addEventListener('click',()=>{F.fr={zoom:1,cx:.5,cy:.5};$('#frZoom').value=1;drawFramer();saveFraming()});
+  const frRot=d=>{F.fr.rot=(curRotOf(F.p,F.it,F.fr)+d+360)%360;F.fr.cx=.5;F.fr.cy=.5;drawFramer();saveFraming()};
+  $('#frRotL').addEventListener('click',()=>frRot(-90));$('#frRotR').addEventListener('click',()=>frRot(90));
+  $('#frBox').addEventListener('click',()=>{const it=F.it,sl=it.slot,pid=it.pid;
+    if(sl.kind==='job'){const j=S.pas.jobs[sl.i];const[w,h]=pasSize(j);j.orient=w>h?'v':'h';renderJobs()}
+    else if(sl.kind==='card'){const[w,h]=cardSize();S.card.orient=w>h?'v':'h'}
+    else if(sl.kind==='grid'){[S.grid.cols,S.grid.rows]=[S.grid.rows,S.grid.cols];S.orient=S.orient==='portrait'?'landscape':'portrait'}
+    else S.orient=S.orient==='portrait'?'landscape':'portrait';
+    fillInputs();save();drawNow();
+    const nx=V.pages.flatMap(p=>p.items).find(i=>i.pid===pid&&i.slot.kind===sl.kind&&(sl.side==null||i.slot.side===sl.side)&&(sl.kind!=='job'||i.slot.i===sl.i));
+    if(nx)openFramer(nx);else $('#framer').close();toast(it.w>it.h?'Diubah jadi tegak':'Diubah jadi mendatar')});
+  let tiltT;$('#frTilt').addEventListener('input',e=>{const p=F.p;p.tilt=num(e.target.value);p.warp=null;$('#frTiltTxt').textContent=fmt(p.tilt)+'°';clearTimeout(tiltT);
+    tiltT=setTimeout(()=>processPhoto(p).then(ok=>{if(ok!==false&&$('#framer').open&&F.p===p){drawFramer();renderLib();draw()}}),180)});
   $('#frDone').addEventListener('click',()=>$('#framer').close());$('#frClose').addEventListener('click',()=>$('#framer').close());
   $('#frEdit').addEventListener('click',()=>{const id=F.p.id;$('#framer').close();openEditor(id)})}
 
@@ -1208,7 +1247,8 @@ function bind(){
     const fc=e.target.closest('[data-fcol]');if(fc){S.frame.color=fc.dataset.fcol;if(S.frame.style==='none')S.frame.style='putih';fillInputs();save();draw();return}
     const a=e.target.closest('[data-act]');if(!a||a.tagName==='SELECT'||a.tagName==='INPUT')return;const act=a.dataset.act;
     const ji=+a.closest('[data-i]')?.dataset.i;
-    if(act==='jobAdd'){S.pas.jobs.push({photo:S.pas.jobs[0]?.photo||[...photos.keys()][0]||null,size:'3x4',count:4,cw:30,ch:40});renderJobs()}
+    if(act==='jobRot'){const id=S.pas.jobs[ji].photo;if(id)rotateContent(id,90,it=>it.slot.kind==='job'&&it.slot.i===ji)}
+    else if(act==='jobAdd'){S.pas.jobs.push({photo:S.pas.jobs[0]?.photo||[...photos.keys()][0]||null,size:'3x4',count:4,cw:30,ch:40});renderJobs()}
     else if(act==='jobDel'){S.pas.jobs.splice(ji,1);renderJobs()}
     else if(act==='jobInc'||act==='jobDec'){const j=S.pas.jobs[ji];const[w,h]=pasSize(j);let c=j.count<0?fitCount(w,h):j.count;j.count=Math.max(0,c+(act==='jobInc'?1:-1));renderJobs()}
     else if(act==='jobMax'){const j=S.pas.jobs[ji];j.count=0;const base=layoutPas().length;let c=0;
@@ -1218,6 +1258,7 @@ function bind(){
     else if(act==='gridUp'&&ji>0){const g=S.grid.photos;[g[ji-1],g[ji]]=[g[ji],g[ji-1]];renderGridList()}
     else if(act==='cardUp'){pickFiles({kind:'card',side:a.closest('[data-side]').dataset.side})}
     else if(act==='cardCrop'){const id=S.card[a.closest('[data-side]').dataset.side];if(id)openEditor(id,{crop:true,aspect:'card'})}
+    else if(act==='cardRot'){const sd=a.closest('[data-side]').dataset.side;if(S.card[sd])rotateContent(S.card[sd],90,it=>it.slot.kind==='card'&&it.slot.side===sd)}
     else if(act==='cardDel'){const sd=a.closest('[data-side]').dataset.side;confirmTap(a,'Ketuk sekali lagi untuk menghapus foto kartu ini',()=>{const id=S.card[sd];S.card[sd]=null;
       const used=S.doc.pages.includes(id)||S.grid.photos.includes(id)||S.card.front===id||S.card.back===id||S.pas.jobs.some(j=>j.photo===id);if(!used)removePhoto(id);else refreshAll();toast('Foto kartu dihapus')});return}
     else if(act==='cardEdit'){const id=S.card[a.closest('[data-side]').dataset.side];if(id)openEditor(id)}
@@ -1225,13 +1266,14 @@ function bind(){
     else if(act==='docDel'){confirmTap(a,'Ketuk sekali lagi untuk menghapus dokumen ini',()=>{const id=S.doc.pages[ji];S.doc.pages.splice(ji,1);
       const used=S.doc.pages.includes(id)||S.grid.photos.includes(id)||S.card.front===id||S.card.back===id||S.pas.jobs.some(j=>j.photo===id);if(!used)removePhoto(id);else refreshAll();toast('Dokumen dihapus')});return}
     else if(act==='docUp'&&ji>0){const d=S.doc.pages;[d[ji-1],d[ji]]=[d[ji],d[ji-1]];renderDocList()}
-    else if(act==='docRot'){const p=photos.get(S.doc.pages[ji]);p.rot=(p.rot+90)%360;p.warp=null;processPhoto(p).then(()=>{renderLib();renderDocList();draw()})}
+    else if(act==='docRot'){rotateContent(S.doc.pages[ji],90,it=>it.slot.kind==='doc')}
     else if(act==='docCrop'){openEditor(S.doc.pages[ji],{crop:true,aspect:'free'})}
     else if(act==='calibPrint'){doPrint([{calib:true,items:[]}])}
     else if(act==='calibReset'){S.calib={sx:100,sy:100,ox:0,oy:0};$('#measX').value='';$('#measY').value=''}
     fillInputs();save();draw()});
   $('#opts').addEventListener('change',e=>{const a=e.target.closest('[data-act]');if(!a)return;const act=a.dataset.act,ji=+a.closest('[data-i]')?.dataset.i;
     if(act==='jobPhoto'){S.pas.jobs[ji].photo=a.value||null}
+    else if(act==='jobOrient'){S.pas.jobs[ji].orient=a.value}
     else if(act==='jobSize'){const j=S.pas.jobs[ji];j.size=a.value;const s=PAS_SIZES.find(z=>z[0]===a.value);if(s&&s[1]){j.cw=s[1];j.ch=s[2]}renderJobs()}
     else if(act==='jobCount'){S.pas.jobs[ji].count=Math.max(0,Math.round(num(a.value)))}
     else if(act==='jobCW'){S.pas.jobs[ji].cw=num(a.value)}else if(act==='jobCH'){S.pas.jobs[ji].ch=num(a.value)}
@@ -1259,7 +1301,7 @@ function bind(){
   $('#sheet').addEventListener('click',e=>{const r=e.target.getBoundingClientRect(),mx=(e.clientX-r.left)/V.pxmm,my=(e.clientY-r.top)/V.pxmm;const pg=V.pages[V.page];if(!pg)return;
     const it=[...pg.items].reverse().find(i=>mx>=i.x&&mx<=i.x+i.w&&my>=i.y&&my<=i.y+i.h);if(!it)return;
     if(!it.pid||!photos.has(it.pid)){pickFiles(it.slot);return}
-    if(it.doc){openEditor(it.pid);return}openFramer(it)});
+    openFramer(it)});
   $('#prevPg').addEventListener('click',()=>{V.page--;draw()});$('#nextPg').addEventListener('click',()=>{V.page++;draw()});
   $('#printBtn').addEventListener('click',()=>doPrint(V.pages));$('#pdfBtn').addEventListener('click',exportPdf);
   $('#pngBtn').addEventListener('click',()=>exportImg('png'));$('#jpgBtn').addEventListener('click',()=>exportImg('jpg'));

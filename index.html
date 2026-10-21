@@ -192,6 +192,8 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 .sw{width:34px;height:34px;border-radius:10px;border:2px solid var(--ink);cursor:pointer;box-shadow:2px 2px 0 var(--shadow);position:relative}
 .sw.on::after{content:"";position:absolute;inset:7px;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 2px #1E2142}
 .sw input{opacity:0;position:absolute;inset:0;cursor:pointer;width:100%;height:100%}
+.btn.on{background:var(--sun);color:#1E2142}
+.brush-chip{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:4;background:var(--ink);color:var(--surface);border-radius:999px;padding:5px 12px;font-weight:800;font-size:12.5px;pointer-events:none;white-space:nowrap}
 .busy{position:absolute;inset:0;display:grid;place-items:center;background:rgba(14,16,36,.25);z-index:5}
 .busy div{background:var(--surface);border:2px solid var(--ink);border-radius:999px;padding:8px 16px;font-weight:800;display:flex;gap:10px;align-items:center;box-shadow:3px 3px 0 var(--shadow)}
 .spin{width:18px;height:18px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--coral);animation:sp 0.8s linear infinite}
@@ -282,7 +284,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v1.7</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v1.8</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -514,7 +516,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
         <button class="btn sm ghost" data-ed-act="cropCancel">Batal</button>
         <button class="btn sm mint" data-ed-act="cropApply">Terapkan</button>
       </div>
-      <div class="ed-canvas" id="edWrap"><canvas id="edCanvas"></canvas><div class="busy" id="edBusy" hidden><div><span class="spin"></span><span id="edBusyTxt">Memproses…</span></div></div></div>
+      <div class="ed-canvas" id="edWrap"><canvas id="edCanvas"></canvas><div class="brush-chip" id="brushChip" hidden></div><div class="busy" id="edBusy" hidden><div><span class="spin"></span><span id="edBusyTxt">Memproses…</span></div></div></div>
       <div class="ed-res" id="edRes"></div>
     </div>
     <div class="ed-side">
@@ -545,11 +547,17 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
       <div class="sec"><h3><span class="dot k"></span>Ganti warna latar</h3>
         <label class="check"><input type="checkbox" data-ed="bg.on">Aktifkan ganti latar</label>
         <div class="swatches" id="bgSw"></div>
-        <label class="fld"><span>Cara deteksi</span><select data-ed="bg.method"><option value="ai">AI deteksi orang</option><option value="flood">Warna dinding polos</option></select></label>
+        <label class="fld"><span>Cara deteksi</span><select data-ed="bg.method"><option value="ai">AI potret (paling rapi)</option><option value="flood">Warna dinding polos</option></select></label>
         <label class="fld" id="tolFld"><span>Toleransi warna dinding <b data-edout="bg.tol"></b></span><input type="range" min="5" max="80" data-ed="bg.tol"></label>
         <label class="fld"><span>Detail rambut <b data-edout="bg.hair"></b></span><input type="range" min="0" max="100" data-ed="bg.hair"></label>
         <label class="fld"><span>Kehalusan tepi <b data-edout="bg.feather"></b></span><input type="range" min="0" max="6" data-ed="bg.feather"></label>
-        <p class="note">Mode AI memuat model deteksi orang dari internet sekali, lalu bisa dipakai offline. Untuk foto studio berlatar polos, “Warna dinding polos” sering lebih rapi. Naikkan <b>Detail rambut</b> bila helai rambut ikut hilang, turunkan bila sisa latar lama masih terlihat.</p>
+        <div class="sec" style="gap:8px;border-top:2px dashed var(--line);padding-top:10px">
+          <b style="font:700 14px var(--f-disp)">Rapikan manual dengan kuas</b>
+          <div class="row2"><button class="btn sm" data-ed-act="brushKeep" id="bKeep">Kuas pertahankan</button><button class="btn sm" data-ed-act="brushErase" id="bErase">Kuas hapus latar</button></div>
+          <label class="fld"><span>Ukuran kuas <b id="brushSizeTxt">4</b></span><input type="range" id="brushSize" min="1" max="15" value="4"></label>
+          <div class="row2"><button class="btn sm ghost" data-ed-act="brushUndo">Urungkan coretan</button><button class="btn sm ghost" data-ed-act="brushClear">Hapus semua coretan</button></div>
+        </div>
+        <p class="note">AI potret mengunduh model ±25 MB sekali, lalu bisa dipakai offline. Naikkan <b>Detail rambut</b> bila helai rambut ikut hilang, turunkan bila sisa latar lama masih terlihat. Bagian yang masih salah: pakai <b>Kuas pertahankan</b> (mengembalikan bagian orang yang ikut terhapus) atau <b>Kuas hapus latar</b> (membuang sisa latar).</p>
       </div>
     </div>
   </div>
@@ -724,6 +732,28 @@ function warpQuad(src,q,aspect){
   ox.putImageData(id,0,0);return out}
 
 /* --- latar (AI & warna dinding) --- */
+/* --- AI potret: MODNet (portrait matting) lewat transformers.js — alpha halus per helai rambut --- */
+const TF_URL='https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2';
+let tfP=null;
+function setBusyText(t){const a=$('#edBusyTxt'),b=$('#gbTxt');if(a)a.textContent=t;if(b)b.textContent=t}
+function loadModnet(){
+  if(tfP)return tfP;
+  tfP=(async()=>{
+    const T=await import(TF_URL);T.env.allowLocalModels=false;
+    const files={};const prog=d=>{if(d&&d.status==='progress'&&d.file){files[d.file]=[d.loaded||0,d.total||0];let l=0,t=0;for(const k in files){l+=files[k][0];t+=files[k][1]}
+      if(t>2e6)setBusyText(`Mengunduh model AI (sekali saja) ${Math.round(l/t*100)}% dari ${Math.round(t/1048576)} MB…`)}};
+    let model;try{model=await T.AutoModel.from_pretrained('Xenova/modnet',{dtype:'fp32',progress_callback:prog})}
+    catch(e){model=await T.AutoModel.from_pretrained('Xenova/modnet',{dtype:'q8',progress_callback:prog})}
+    const proc=await T.AutoProcessor.from_pretrained('Xenova/modnet');
+    return{T,model,proc}})();
+  tfP.catch(()=>{tfP=null});return tfP}
+async function modnetAlpha(s){
+  const{T,model,proc}=await loadModnet();setBusyText('AI memisahkan orang dari latar…');
+  const blob=await new Promise(r=>s.toBlob(r,'image/png'));const img=await T.RawImage.fromBlob(blob);
+  const{pixel_values}=await proc(img);const{output}=await model({input:pixel_values});
+  const m=await T.RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(s.width,s.height);
+  const ch=m.channels||1,out=new Uint8ClampedArray(s.width*s.height);for(let j=0;j<out.length;j++)out[j]=m.data[j*ch];
+  return out}
 let segP=null;
 function loadSeg(){
   if(segP)return segP;
@@ -765,61 +795,86 @@ function boxF(src,w,h,r){
     for(let y=0;y<h;y++){out[y*w+x]=s/d;const ya=y+r+1<h?y+r+1:h-1,ys=y-r>0?y-r:0;s+=tmp[ya*w+x]-tmp[ys*w+x]}}
   return out}
 const sstep=(e0,e1,v)=>{let t=(v-e0)/(e1-e0);t=t<0?0:t>1?1:t;return t*t*(3-2*t)};
-/* Matting: masker kasar (AI / warna dinding) → pita tepi → alpha dari selisih warna terhadap latar lokal
-   + guided filter → estimasi warna latar lama per piksel (untuk membuang "pinggiran" warna latar di helai rambut). */
-function refineMatte(g,coarse,sw,sh,bg){
-  const sc=Math.min(1,1400/Math.max(g.width,g.height)),W=Math.max(8,Math.round(g.width*sc)),H=Math.max(8,Math.round(g.height*sc)),N=W*H;
+/* Matting:
+   - AI potret (MODNet) memberi alpha halus → dipertajam ke tepi asli dengan guided filter, lubang di badan ditutup.
+   - Warna dinding / AI cadangan → alpha dari selisih warna terhadap latar lokal.
+   - Coretan kuas (pertahankan / hapus) diterapkan di atasnya.
+   - Warna latar lama diperkirakan per piksel agar pinggiran rambut tidak membawa warna latar lama. */
+function guided(Ig,P,W,H,r,eps){const N=W*H,IP=new Float32Array(N),II=new Float32Array(N);for(let j=0;j<N;j++){IP[j]=Ig[j]*P[j];II[j]=Ig[j]*Ig[j]}
+  const mI=boxF(Ig,W,H,r),mP=boxF(P,W,H,r),mIP=boxF(IP,W,H,r),mII=boxF(II,W,H,r),a=new Float32Array(N),b=new Float32Array(N);
+  for(let j=0;j<N;j++){const v=mII[j]-mI[j]*mI[j];a[j]=(mIP[j]-mI[j]*mP[j])/(v+eps);b[j]=mP[j]-a[j]*mI[j]}
+  const ma=boxF(a,W,H,r),mb=boxF(b,W,H,r),q=new Float32Array(N);for(let j=0;j<N;j++){const v=ma[j]*Ig[j]+mb[j];q[j]=v<0?0:v>1?1:v}return q}
+function strokeLayer(strokes,W,H){
+  if(!strokes||!strokes.length)return null;const big=Math.max(W,H),c=cv(W,H),x=c.getContext('2d');
+  x.fillStyle='rgb(128,128,128)';x.fillRect(0,0,W,H);x.lineCap='round';x.lineJoin='round';
+  for(const s of strokes){const col=s.m==='keep'?'#fff':'#000';x.strokeStyle=col;x.fillStyle=col;x.lineWidth=Math.max(1,s.r*big*2);
+    const P=s.pts.map(([u,v])=>[u*W,v*H]);if(P.length===1){x.beginPath();x.arc(P[0][0],P[0][1],x.lineWidth/2,0,7);x.fill();continue}
+    x.beginPath();P.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]));x.stroke()}
+  const d=x.getImageData(0,0,W,H).data,v=new Float32Array(W*H);for(let j=0;j<W*H;j++)v[j]=d[j*4];
+  return boxF(v,W,H,Math.max(1,Math.round(big/500)))}
+function refineMatte(g,coarse,sw,sh,bg,soft){
+  const sc=Math.min(1,1600/Math.max(g.width,g.height)),W=Math.max(8,Math.round(g.width*sc)),H=Math.max(8,Math.round(g.height*sc)),N=W*H;
   const ic=cv(W,H),ix=ctx2(ic);ix.imageSmoothingQuality='high';ix.drawImage(g,0,0,W,H);const I=ix.getImageData(0,0,W,H).data;
-  const cc=cv(sw,sh),cx=ctx2(cc),cid=cx.createImageData(sw,sh);for(let j=0;j<sw*sh;j++){cid.data[j*4]=coarse[j];cid.data[j*4+3]=255}cx.putImageData(cid,0,0);
-  const uc=cv(W,H),ux=ctx2(uc);ux.imageSmoothingQuality='high';ux.drawImage(cc,0,0,W,H);const ud=ux.getImageData(0,0,W,H).data;
+  const cc=cv(sw,sh),cx=ctx2(cc),cid=cx.createImageData(sw,sh);for(let j=0;j<sw*sh;j++){cid.data[j*4]=coarse[j];cid.data[j*4+1]=coarse[j];cid.data[j*4+2]=coarse[j];cid.data[j*4+3]=255}cx.putImageData(cid,0,0);
+  const uc=cv(W,H),ux=ctx2(uc);ux.imageSmoothingEnabled=true;ux.imageSmoothingQuality='high';ux.drawImage(cc,0,0,W,H);const ud=ux.getImageData(0,0,W,H).data;
   const P=new Float32Array(N),L=new Float32Array(N);
   for(let j=0;j<N;j++){P[j]=ud[j*4]/255;L[j]=(0.299*I[j*4]+0.587*I[j*4+1]+0.114*I[j*4+2])/255}
-  const big=Math.max(W,H),R=Math.max(4,Math.round(big/70));
-  const Pb=boxF(boxF(P,W,H,R),W,H,R);
-  const RR=Math.max(6,Math.round(big/24)),Pr=boxF(boxF(P,W,H,RR),W,H,RR);   // jangkauan keluar untuk helai rambut
-  // latar lokal (normalized convolution dari piksel yang pasti latar)
-  const wB=new Float32Array(N),cr=new Float32Array(N),cg=new Float32Array(N),cb=new Float32Array(N);let gr=0,gg=0,gb=0,gn=0;
-  for(let j=0;j<N;j++){if(Pr[j]<0.01){wB[j]=1;cr[j]=I[j*4];cg[j]=I[j*4+1];cb[j]=I[j*4+2];gr+=I[j*4];gg+=I[j*4+1];gb+=I[j*4+2];gn++}}
-  if(!gn){gn=1;gr=gg=gb=200}gr/=gn;gg/=gn;gb/=gn;
-  const RB=Math.max(10,Math.round(big/10)),bl=a=>boxF(boxF(a,W,H,RB),W,H,RB);
-  const Ws=bl(wB),Br=bl(cr),Bg=bl(cg),Bb=bl(cb);
-  // guided filter (pemandu: luminansi)
-  const r=Math.max(2,Math.round(big/240)),eps=0.0006;
-  const LP=new Float32Array(N),LL=new Float32Array(N);for(let j=0;j<N;j++){LP[j]=L[j]*P[j];LL[j]=L[j]*L[j]}
-  const mI=boxF(L,W,H,r),mP=boxF(P,W,H,r),mIP=boxF(LP,W,H,r),mII=boxF(LL,W,H,r),ga=new Float32Array(N),gbv=new Float32Array(N);
-  for(let j=0;j<N;j++){const v=mII[j]-mI[j]*mI[j];ga[j]=(mIP[j]-mI[j]*mP[j])/(v+eps);gbv[j]=mP[j]-ga[j]*mI[j]}
-  const ma=boxF(ga,W,H,r),mb=boxF(gbv,W,H,r);
-  const hair=(bg.hair??70)/100,t0=6+(1-hair)*24,t1=t0+30+(1-hair)*50;
-  let A=new Float32Array(N);const B=new Uint8ClampedArray(N*4);
+  const big=Math.max(W,H),hair=(bg.hair??70)/100;
+  let A=new Float32Array(N),reach,core;
+  if(soft){
+    // alpha model ditempelkan ke tepi asli (guided filter) di pita tepi
+    const gq=guided(L,P,W,H,Math.max(2,Math.round(big/400)),2e-4),Pb=boxF(P,W,H,Math.max(2,Math.round(big/160)));
+    for(let j=0;j<N;j++){const band=Pb[j]>0.005&&Pb[j]<0.995;A[j]=band?0.45*P[j]+0.55*gq[j]:P[j]}
+    // tutup lubang di badan/baju
+    const R2=Math.max(4,Math.round(big/45)),Ac=boxF(boxF(A,W,H,R2),W,H,R2);for(let j=0;j<N;j++)A[j]=Math.max(A[j],sstep(0.86,0.97,Ac[j]));
+    const lo=0.03+(1-hair)*0.30,hi=0.97-hair*0.17;for(let j=0;j<N;j++)A[j]=sstep(lo,hi,A[j]);
+    const RR=Math.max(6,Math.round(big/22));reach=boxF(boxF(A,W,H,RR),W,H,RR);
+    const Ae=boxF(A,W,H,Math.max(2,Math.round(big/200)));core=j=>Ae[j]>0.985;
+  }else{
+    const R=Math.max(4,Math.round(big/70)),Pb=boxF(boxF(P,W,H,R),W,H,R);
+    const RR=Math.max(6,Math.round(big/24));reach=boxF(boxF(P,W,H,RR),W,H,RR);
+    for(let j=0;j<N;j++)A[j]=Pb[j];core=j=>Pb[j]>0.995}
+  const defBg=j=>reach[j]<(soft?0.004:0.01);
+  // warna latar lokal (B) & warna orang lokal (F) — normalized convolution
+  const nconv=(sel,rad)=>{const w=new Float32Array(N),r=new Float32Array(N),g2=new Float32Array(N),b2=new Float32Array(N);let gr=0,gg=0,gb=0,gn=0;
+    for(let j=0;j<N;j++)if(sel(j)){w[j]=1;r[j]=I[j*4];g2[j]=I[j*4+1];b2[j]=I[j*4+2];gr+=r[j];gg+=g2[j];gb+=b2[j];gn++}
+    if(!gn)return null;gr/=gn;gg/=gn;gb/=gn;const bl=a=>boxF(boxF(a,W,H,rad),W,H,rad),Ws=bl(w),Rr=bl(r),Rg=bl(g2),Rb=bl(b2),out=new Float32Array(N*3);
+    for(let j=0;j<N;j++){const ws=Ws[j];let x=gr,y=gg,z=gb;if(ws>1e-3){const k=1/ws,f=Math.min(1,ws/0.02);x=Rr[j]*k*f+gr*(1-f);y=Rg[j]*k*f+gg*(1-f);z=Rb[j]*k*f+gb*(1-f)}out[j*3]=x;out[j*3+1]=y;out[j*3+2]=z}
+    return out};
+  let Bc=nconv(defBg,Math.max(10,Math.round(big/12)));if(!Bc){Bc=new Float32Array(N*3).fill(200)}
+  const Fc=nconv(core,Math.max(6,Math.round(big/30)));
+  // alpha dari warna (proyeksi I ke garis B→F): menangkap helai rambut tipis yang terlewat model
+  const gq2=soft?null:guided(L,P,W,H,Math.max(2,Math.round(big/240)),6e-4);
   for(let j=0;j<N;j++){
-    const ws=Ws[j],k=ws>1e-3?1/ws:0;let br=gr,bgc=gg,bbc=gb;
-    if(ws>1e-3){const f=Math.min(1,ws/0.02);br=Br[j]*k*f+gr*(1-f);bgc=Bg[j]*k*f+gg*(1-f);bbc=Bb[j]*k*f+gb*(1-f)}
-    B[j*4]=br;B[j*4+1]=bgc;B[j*4+2]=bbc;B[j*4+3]=255;
-    const pb=Pb[j],pr=Pr[j];
-    if(pr<=0.002){A[j]=0;continue}if(pb>=0.997){A[j]=1;continue}
-    const dr=I[j*4]-br,dg=I[j*4+1]-bgc,db=I[j*4+2]-bbc,dist=Math.sqrt(dr*dr+dg*dg+db*db);
-    const ac=sstep(t0,t1,dist);let gq=ma[j]*L[j]+mb[j];gq=gq<0?0:gq>1?1:gq;
-    const conf=Math.min(1,ws/0.05);
-    let a=conf*ac+(1-conf)*gq;
-    a=Math.max(a,sstep(0.78,0.96,pb));      // lindungi bagian dalam (baju/wajah yang mirip warna latar)
-    a*=sstep(0.002,0.03,pr);                 // jauh dari subjek = pasti latar
-    A[j]=a}
-  if(bg.feather>0){const fr=Math.max(1,Math.round(bg.feather*big/1400));A=boxF(A,W,H,fr)}
+    const rv=reach[j];if(soft){if(rv<=0.004)continue}else{if(rv<=0.002){A[j]=0;continue}}
+    if(core(j)){A[j]=1;continue}
+    let ac=-1;
+    if(Fc){const dx=Fc[j*3]-Bc[j*3],dy=Fc[j*3+1]-Bc[j*3+1],dz=Fc[j*3+2]-Bc[j*3+2],dd=dx*dx+dy*dy+dz*dz;
+      if(dd>2500){ac=((I[j*4]-Bc[j*3])*dx+(I[j*4+1]-Bc[j*3+1])*dy+(I[j*4+2]-Bc[j*3+2])*dz)/dd;ac=ac<0?0:ac>1?1:ac}}
+    if(soft){if(ac>=0){const fall=sstep(0.004,0.06,rv);A[j]=Math.max(A[j],(0.35+0.65*hair)*sstep(0.10,0.80,ac)*fall)}}
+    else{let a=ac>=0?sstep(0.06+(1-hair)*0.15,0.85,ac):gq2[j];a=Math.max(a,sstep(0.78,0.96,A[j]));a*=sstep(0.002,0.03,rv);A[j]=a}}
+  // coretan kuas
+  const SL=strokeLayer(bg.strokes,W,H);
+  if(SL)for(let j=0;j<N;j++){const v=SL[j];if(v>129)A[j]=A[j]+(1-A[j])*Math.min(1,(v-128)/120);else if(v<127)A[j]=A[j]*Math.max(0,(v-8)/120)}
+  if(bg.feather>0){const fr=Math.max(1,Math.round(bg.feather*big/1600));A=boxF(A,W,H,fr)}
   const ac=cv(W,H),ax=ac.getContext('2d'),aid=ax.createImageData(W,H);for(let j=0;j<N;j++)aid.data[j*4+3]=A[j]*255;ax.putImageData(aid,0,0);
-  const bc=cv(W,H),bx=bc.getContext('2d'),bid=bx.createImageData(W,H);bid.data.set(B);bx.putImageData(bid,0,0);
+  const bc=cv(W,H),bx=bc.getContext('2d'),bid=bx.createImageData(W,H);for(let j=0;j<N;j++){bid.data[j*4]=Bc[j*3];bid.data[j*4+1]=Bc[j*3+1];bid.data[j*4+2]=Bc[j*3+2];bid.data[j*4+3]=255}bx.putImageData(bid,0,0);
   return{a:ac,b:bc}}
 async function getMatte(p){
-  const g=geo(p),b=p.bg,key=p._geoKey+'|'+b.method+'|'+b.tol+'|'+b.feather+'|'+b.hair;
+  const g=geo(p),b=p.bg,key=p._geoKey+'|'+b.method+'|'+b.tol+'|'+b.feather+'|'+b.hair+'|'+(b.sv||0)+'|'+(b.strokes?b.strokes.length:0);
   if(p._mask&&p._maskKey===key)return p._mask;
   const ck=p._geoKey+'|'+b.method+'|'+(b.method==='flood'?b.tol:'');
   let co=p._coarse&&p._coarseKey===ck?p._coarse:null;
-  if(!co){const sc=Math.min(1,900/Math.max(g.width,g.height)),s=cv(g.width*sc,g.height*sc);s.getContext('2d').drawImage(g,0,0,s.width,s.height);
-    let a=null;
-    if(b.method==='ai'){try{a=await aiAlpha(s)}catch(e){toast('Model AI belum bisa dimuat (cek internet). Memakai deteksi warna dinding.',3800)}}
+  if(!co){const sc=Math.min(1,1024/Math.max(g.width,g.height)),s=cv(g.width*sc,g.height*sc);s.getContext('2d').drawImage(g,0,0,s.width,s.height);
+    let a=null,soft=false;
+    if(b.method==='ai'){
+      try{a=await modnetAlpha(s);soft=true}catch(e){console.warn('MODNet',e);
+        try{a=await aiAlpha(s);toast('Model AI potret belum bisa dimuat. Memakai AI cadangan; sambungkan internet lalu coba lagi untuk hasil terbaik.',4500)}
+        catch(e2){toast('Model AI belum bisa dimuat (cek internet). Memakai deteksi warna dinding.',4000)}}}
     if(!a)a=floodAlpha(s,b.tol);
-    co={a,w:s.width,h:s.height};p._coarse=co;p._coarseKey=ck}
-  await tick();
-  const m=refineMatte(g,co.a,co.w,co.h,b);p._mask=m;p._maskKey=key;return m}
+    co={a,w:s.width,h:s.height,soft};if(soft||b.method!=='ai'){p._coarse=co;p._coarseKey=ck}}
+  setBusyText('Merapikan tepi & rambut…');await tick();
+  const m=refineMatte(g,co.a,co.w,co.h,b,co.soft);p._mask=m;p._maskKey=key;return m}
 function scaledData(c,w,h){const t=cv(w,h),x=ctx2(t);x.imageSmoothingQuality='high';x.drawImage(c,0,0,w,h);return x.getImageData(0,0,w,h).data}
 
 /* --- foto & pipeline --- */
@@ -840,7 +895,7 @@ try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}ca
 async function restoreSession(){
   const recs=await DB.all();
   if(recs&&recs.length){gbusy(true,'Memulihkan pekerjaan…');recs.sort((a,b)=>a.n-b.n);
-    for(const r of recs){try{const blob=r.buf?new Blob([r.buf],{type:r.type||'image/jpeg'}):r.blob;const img=await loadImgFile(blob);const p=newPhoto(img,r.meta?.name,blob,r.id);if(r.buf){p._buf=r.buf;p._type=r.type}Object.assign(p,JSON.parse(JSON.stringify(r.meta||{})));p.bg={...{on:false,color:'#C8102E',method:'ai',tol:28,feather:1,hair:70},...p.bg};seq=Math.max(seq,r.n||0)}catch(e){DB.del(r.id)}}}
+    for(const r of recs){try{const blob=r.buf?new Blob([r.buf],{type:r.type||'image/jpeg'}):r.blob;const img=await loadImgFile(blob);const p=newPhoto(img,r.meta?.name,blob,r.id);if(r.buf){p._buf=r.buf;p._type=r.type}Object.assign(p,JSON.parse(JSON.stringify(r.meta||{})));p.bg={...{on:false,color:'#C8102E',method:'ai',tol:28,feather:1,hair:70,strokes:[],sv:0},...p.bg};seq=Math.max(seq,r.n||0)}catch(e){DB.del(r.id)}}}
   // rujukan yang fotonya sudah tidak ada dibersihkan
   const ok=id=>id&&photos.has(id);
   S.pas.jobs.forEach(j=>{if(!ok(j.photo))j.photo=null});S.grid.photos=S.grid.photos.filter(ok);if(!ok(S.card.front))S.card.front=null;if(!ok(S.card.back))S.card.back=null;S.doc.pages=S.doc.pages.filter(ok);
@@ -853,7 +908,7 @@ function newPhoto(img,name,srcBlob,fixedId){
   const id=fixedId||('f'+(++seq));
   const p={id,srcBlob:srcBlob||null,name:(name||'Foto '+seq).replace(/\.[^.]+$/,''),orig:o,rot:0,flip:false,flipV:false,tilt:0,warp:null,warpAspect:'free',
     adj:{bright:0,contrast:0,sat:0,warm:0,sharp:0,denoise:0,smooth:0,upscale:'1',auto:false,filter:'none'},
-    bg:{on:false,color:'#C8102E',method:'ai',tol:28,feather:1,hair:70},framing:{},out:null,thumb:''};
+    bg:{on:false,color:'#C8102E',method:'ai',tol:28,feather:1,hair:70,strokes:[],sv:0},framing:{},out:null,thumb:''};
   photos.set(p.id,p);return p}
 function rotated(p){const tl=num(p.tilt),key=p.rot+'|'+p.flip+'|'+!!p.flipV+'|'+tl;if(p._rot&&p._rotKey===key)return p._rot;
   const o=p.orig,sw=p.rot%180!==0,c=cv(sw?o.height:o.width,sw?o.width:o.height),x=c.getContext('2d');
@@ -1181,7 +1236,10 @@ function fillEditor(){const p=E.p;
   $('#bgSw').innerHTML=BG_COLORS.map(([c,n])=>`<button class="sw${p.bg.color.toUpperCase()===c?' on':''}" style="background:${c}" data-bgc="${c}" title="${n}" aria-label="Latar ${n}"></button>`).join('')+`<label class="sw" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" title="Warna lain"><input type="color" id="bgPick" value="${p.bg.color}"></label>`;
   $('#tolFld').hidden=p.bg.method!=='flood';updateRes()}
 function updateRes(){const p=E.p;if(!p)return;const o=p.out||geo(p);const dpi=300;$('#edRes').textContent=`${o.width}×${o.height} px · cetak tajam hingga ${fmt(o.width/dpi*2.54)}×${fmt(o.height/dpi*2.54)} cm (300 dpi)`}
-function setEdMode(m,aspect){E.mode=m;$('#edBarView').hidden=m!=='view';$('#edBarCrop').hidden=m!=='crop';
+function setBrush(m){E.brush=m;E.mode=m?'brush':'view';$('#bKeep').classList.toggle('on',m==='keep');$('#bErase').classList.toggle('on',m==='erase');
+  const c=$('#brushChip');c.hidden=!m;c.textContent=m==='keep'?'Kuas pertahankan: usap bagian orang yang hilang':'Kuas hapus: usap sisa latar lama';
+  if(m&&!E.p.bg.on){E.p.bg.on=true;fillEditor();reprocess(true)}drawEditor()}
+function setEdMode(m,aspect){if(E.brush&&m!=='brush'){E.brush=null;$('#bKeep').classList.remove('on');$('#bErase').classList.remove('on');$('#brushChip').hidden=true}E.mode=m;$('#edBarView').hidden=m!=='view';$('#edBarCrop').hidden=m!=='crop';
   if(m==='crop'){const p=E.p;E.quad=p.warp?p.warp.map(q=>q.slice()):[[0.04,0.04],[0.96,0.04],[0.96,0.96],[0.04,0.96]];$('#cropAspect').value=aspect||p.warpAspect||'free'}
   drawEditor()}
 function edBusy(on,t){$('#edBusy').hidden=!on;if(t)$('#edBusyTxt').textContent=t}
@@ -1194,6 +1252,10 @@ function drawEditor(){
   const src=E.mode==='crop'?rotated(p):(E.cmp?geo(p):(p.out||geo(p)));const pad=E.mode==='crop'?26:14;
   const s=Math.min((cw-2*pad)/src.width,(ch-2*pad)/src.height),ox=(cw-src.width*s)/2,oy=(ch-src.height*s)/2;E.fit={ox,oy,s,w:src.width,h:src.height};
   x.imageSmoothingQuality='high';x.drawImage(src,ox,oy,src.width*s,src.height*s);
+  if(E.mode==='brush'&&E.stroke){const st=E.stroke,big=Math.max(src.width,src.height)*s;x.save();x.globalAlpha=.45;x.strokeStyle=x.fillStyle=st.m==='keep'?'#1FB59C':'#E5484D';
+    x.lineCap='round';x.lineJoin='round';x.lineWidth=Math.max(2,st.r*big*2);const P=st.pts.map(([u,v])=>[ox+u*src.width*s,oy+v*src.height*s]);
+    if(P.length===1){x.beginPath();x.arc(P[0][0],P[0][1],x.lineWidth/2,0,7);x.fill()}else{x.beginPath();P.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]));x.stroke()}x.restore()}
+  if(E.mode==='brush'&&E.hover){const big=Math.max(src.width,src.height)*s,r=Math.max(1,brushR()*big);x.save();x.strokeStyle='#fff';x.lineWidth=2;x.beginPath();x.arc(E.hover[0],E.hover[1],r,0,7);x.stroke();x.strokeStyle='#1E2142';x.lineWidth=1;x.stroke();x.restore()}
   if(E.cmp){x.fillStyle='rgba(30,33,66,.8)';x.fillRect(10,10,64,24);x.fillStyle='#fff';x.font='800 12px Nunito,sans-serif';x.fillText('ASLI',24,27)}
   if(E.mode==='crop'){const P=E.quad.map(([u,v])=>[ox+u*src.width*s,oy+v*src.height*s]);
     x.save();x.fillStyle='rgba(14,16,36,.5)';x.beginPath();x.rect(0,0,cw,ch);x.moveTo(P[0][0],P[0][1]);for(let i=3;i>=0;i--)x.lineTo(P[i][0],P[i][1]);x.closePath();x.fill('evenodd');
@@ -1204,9 +1266,17 @@ function drawEditor(){
       const k=Z*s;x.drawImage(src,sx-L/2/k,sy-L/2/k,L/k,L/k,lx,12,L,L);x.restore();
       x.strokeStyle='#FF6B4A';x.lineWidth=3;x.beginPath();x.arc(lx+L/2,12+L/2,L/2,0,7);x.stroke();x.lineWidth=1.5;x.beginPath();x.moveTo(lx+L/2-10,12+L/2);x.lineTo(lx+L/2+10,12+L/2);x.moveTo(lx+L/2,12+L/2-10);x.lineTo(lx+L/2,12+L/2+10);x.stroke()}
     x.restore()}}
+function brushR(){return num($('#brushSize').value)*0.004}
 function edPt(e){const r=$('#edCanvas').getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
 function bindEditor(){
   const c=$('#edCanvas');
+  const toUV=(mx,my)=>{const f=E.fit;return[Math.min(1,Math.max(0,(mx-f.ox)/(f.w*f.s))),Math.min(1,Math.max(0,(my-f.oy)/(f.h*f.s)))]};
+  c.addEventListener('pointerdown',e=>{if(E.mode!=='brush')return;e.preventDefault();c.setPointerCapture(e.pointerId);const[mx,my]=edPt(e);E.hover=[mx,my];E.stroke={m:E.brush,r:brushR(),pts:[toUV(mx,my)]};drawEditor()});
+  c.addEventListener('pointermove',e=>{if(E.mode!=='brush')return;const[mx,my]=edPt(e);E.hover=[mx,my];if(E.stroke){const q=toUV(mx,my),l=E.stroke.pts[E.stroke.pts.length-1];if(Math.hypot(q[0]-l[0],q[1]-l[1])>0.002)E.stroke.pts.push(q)}drawEditor()});
+  const bup=()=>{if(E.mode!=='brush'||!E.stroke)return;const p=E.p,st=E.stroke;E.stroke=null;st.pts=st.pts.map(([u,v])=>[+u.toFixed(4),+v.toFixed(4)]);st.r=+st.r.toFixed(4);
+    p.bg.strokes=(p.bg.strokes||[]).concat([st]);p.bg.sv=(p.bg.sv||0)+1;p.bg.on=true;reprocess(true)};
+  c.addEventListener('pointerup',bup);c.addEventListener('pointercancel',bup);c.addEventListener('pointerleave',()=>{if(E.mode==='brush'&&!E.stroke){E.hover=null;drawEditor()}});
+  $('#brushSize').addEventListener('input',e=>{$('#brushSizeTxt').textContent=e.target.value;drawEditor()});
   c.addEventListener('pointerdown',e=>{if(E.mode!=='crop')return;const[mx,my]=edPt(e),f=E.fit;let best=-1,bd=1e9;
     E.quad.forEach(([u,v],i)=>{const d=Math.hypot(f.ox+u*f.w*f.s-mx,f.oy+v*f.h*f.s-my);if(d<bd){bd=d;best=i}});
     if(bd<48){E.drag=best;c.setPointerCapture(e.pointerId);drawEditor()}});
@@ -1222,8 +1292,11 @@ function bindEditor(){
     const f=e.target.closest('[data-filter]');if(f){p.adj.filter=f.dataset.filter;fillEditor();reprocess(true);return}
     const bc=e.target.closest('[data-bgc]');if(bc){p.bg.color=bc.dataset.bgc;p.bg.on=true;fillEditor();reprocess(true);return}
     const a=e.target.closest('[data-ed-act]');if(!a)return;const act=a.dataset.edAct;
-    if(act==='rotL'||act==='rotR'){p.rot=(p.rot+(act==='rotL'?270:90))%360;p.warp=null;p.framing={};reprocess(true)}
+    if(act==='rotL'||act==='rotR'){p.rot=(p.rot+(act==='rotL'?270:90))%360;p.warp=null;p.framing={};if(p.bg.strokes&&p.bg.strokes.length){p.bg.strokes=[];p.bg.sv++}reprocess(true)}
     else if(act==='flip'){p.flip=!p.flip;p.warp=null;reprocess(true)}
+    else if(act==='brushKeep'||act==='brushErase'){const m=act==='brushKeep'?'keep':'erase';setBrush(E.brush===m?null:m)}
+    else if(act==='brushUndo'){if(p.bg.strokes&&p.bg.strokes.length){p.bg.strokes=p.bg.strokes.slice(0,-1);p.bg.sv=(p.bg.sv||0)+1;reprocess(true)}}
+    else if(act==='brushClear'){if(p.bg.strokes&&p.bg.strokes.length){p.bg.strokes=[];p.bg.sv=(p.bg.sv||0)+1;reprocess(true);toast('Coretan kuas dihapus')}}
     else if(act==='flipV'){p.flipV=!p.flipV;p.warp=null;reprocess(true)}
     else if(act==='crop')setEdMode('crop');
     else if(act==='cropCancel')setEdMode('view');
@@ -1232,8 +1305,8 @@ function bindEditor(){
     else if(act==='cropApply'){p.warp=E.quad.map(q=>q.slice());p.warpAspect=$('#cropAspect').value;p.framing={};setEdMode('view');edBusy(true,'Meluruskan…');setTimeout(()=>reprocess(true),30)}
     else if(act==='auto'){const g=geo(p),big=Math.max(g.width,g.height);Object.assign(p.adj,{auto:true,denoise:Math.max(p.adj.denoise,22),sharp:Math.max(p.adj.sharp,40),upscale:big<900?'3':big<1500?'2':p.adj.upscale});fillEditor();reprocess(true);toast('Perbaikan otomatis diterapkan')}});
   $('#edDone').addEventListener('click',()=>{$('#editor').close()});
-  $('#edReset').addEventListener('click',()=>{const p=E.p;p.rot=0;p.flip=false;p.flipV=false;p.tilt=0;p.warp=null;p.framing={};p.adj={bright:0,contrast:0,sat:0,warm:0,sharp:0,denoise:0,smooth:0,upscale:'1',auto:false,filter:'none'};p.bg.on=false;fillEditor();setEdMode('view');reprocess(true)});
-  $('#editor').addEventListener('close',()=>{E.mode='view';renderLib();renderPanels();draw()});
+  $('#edReset').addEventListener('click',()=>{const p=E.p;p.rot=0;p.flip=false;p.flipV=false;p.tilt=0;p.warp=null;p.framing={};p.adj={bright:0,contrast:0,sat:0,warm:0,sharp:0,denoise:0,smooth:0,upscale:'1',auto:false,filter:'none'};p.bg.on=false;p.bg.strokes=[];p.bg.sv=(p.bg.sv||0)+1;fillEditor();setEdMode('view');reprocess(true)});
+  $('#editor').addEventListener('close',()=>{if(E.brush)setEdMode('view');E.mode='view';renderLib();renderPanels();draw()});
   new ResizeObserver(()=>drawEditor()).observe($('#edWrap'))}
 
 /* ============ ATUR POSISI (FRAMER) ============ */

@@ -1,5 +1,5 @@
 // KLM Cetak Foto — service worker (offline)
-const VERSION = 'klm-cetak-v8';
+const VERSION = 'klm-cetak-v9';
 const CORE = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './sender/index.html', './sender/vendor/qrcode.js'];
 
 self.addEventListener('install', e => {
@@ -12,6 +12,7 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  if (/huggingface\.co|hf\.co|cdn-lfs/.test(url.hostname)) return;   // model AI dicache sendiri oleh pustaka AI
   // Halaman aplikasi: utamakan jaringan agar selalu versi terbaru, cadangan dari cache saat offline
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req, { cache: 'no-store' }).then(r => { if (r.ok) { const cp = r.clone(); caches.open(VERSION).then(c => c.put(req, cp)); } return r; })

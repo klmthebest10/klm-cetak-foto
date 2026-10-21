@@ -26,8 +26,7 @@ Di iPhone: Safari → Bagikan → Tambahkan ke Layar Utama.
 - **Dokumen**: ijazah, akta, KK, surat; 1/2/4 halaman per lembar, filter **Scan bersih** (memutihkan kertas, hapus bayangan) dan **Scan H/P**.
 - **Edit foto**: perbaiki otomatis (warna pudar, noise, perbesar resolusi, pertajam), haluskan kulit, kecerahan/kontras/saturasi/kehangatan, filter, putar, cermin.
 - **Ganti warna latar** (merah, biru, putih, dll.) dengan perapian tepi rambut, AI deteksi orang (MediaPipe, unduh model sekali) atau deteksi warna dinding polos.
-- **Putar layout**: seluruh susunan di kertas bisa diputar 0°, 90°, 180°, 270° (tombol ↺ ↻ di atas lembar), tersimpan per mode.
-- **Putar & arah**: tiap foto, KTP, paspor, dan dokumen bisa diputar 90°, dimiringkan bebas (−45° s.d. 45°), dicerminkan, dan diubah tegak ⇄ mendatar langsung dari lembar (ketuk fotonya).
+- **Putar & arah per foto**: tiap foto, KTP, paspor, dan dokumen bisa diputar ↺ ↻ 90° (mis. dokumen terbalik), diluruskan bila miring (−45° s.d. 45°), dan diatur tegak/mendatar sendiri-sendiri — mis. KTP depan tegak, belakang mendatar.
 - **Bingkai**: warna, polaroid, garis, garis ganda, putus-putus, titik, gelombang, sudut bulat.
 - **Panduan potong**: garis bantu, tanda sudut, garis tepi.
 - **Kertas**: A4, F4, Letter, Legal, A5, A3, 4R, 5R, 6R, 8R, ukuran sendiri; tegak/mendatar; margin.

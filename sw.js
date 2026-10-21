@@ -1,5 +1,5 @@
 // KLM Cetak Foto — service worker (offline)
-const VERSION = 'klm-cetak-v6';
+const VERSION = 'klm-cetak-v7';
 const CORE = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './sender/index.html', './sender/vendor/qrcode.js'];
 
 self.addEventListener('install', e => {
@@ -14,8 +14,8 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   // Halaman aplikasi: utamakan jaringan agar selalu versi terbaru, cadangan dari cache saat offline
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).then(r => { const cp = r.clone(); caches.open(VERSION).then(c => c.put('./index.html', cp)); return r; })
-      .catch(() => caches.match('./index.html')));
+    e.respondWith(fetch(req).then(r => { if (r.ok) { const cp = r.clone(); caches.open(VERSION).then(c => c.put(req, cp)); } return r; })
+      .catch(() => caches.match(req, { ignoreSearch: true }).then(h => h || caches.match(url.pathname.includes('/sender/') ? './sender/index.html' : './index.html'))));
     return;
   }
   // Aset lain (ikon, font, pustaka PDF, model AI): cache dulu, lalu simpan dari jaringan

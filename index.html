@@ -206,6 +206,13 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);opacity:0;z-index:120;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:12px;font-weight:700;max-width:min(92vw,520px);text-align:center;transition:.2s;pointer-events:none}
 #toast.show{opacity:1;transform:translateX(-50%)}
 #printArea{display:none}
+.sender-view{flex:1;display:flex;flex-direction:column;gap:10px;min-height:0;padding-block:14px;padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
+.sv-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface);border:2px solid var(--ink);border-radius:var(--r);box-shadow:4px 4px 0 var(--shadow);padding:10px 12px}
+.sv-txt{flex:1;min-width:220px;display:flex;flex-direction:column;font-size:13px;color:var(--muted)}
+.sv-txt b{font:700 16px/1.2 var(--f-disp);color:var(--ink)}
+.sv-frame{flex:1;min-height:0;display:flex}
+.sv-frame iframe{flex:1;width:100%;min-height:560px;border:2px solid var(--ink);border-radius:var(--r);box-shadow:4px 4px 0 var(--shadow);background:var(--bg)}
+@media (max-width:900px){.sv-frame iframe{min-height:calc(100dvh - 230px)}}
 
 /* responsive */
 @media (max-width:1180px){.app{grid-template-columns:210px minmax(0,1fr) 310px}}
@@ -270,6 +277,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
   <symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
   <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5 16c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M14 10h5M14 14h4"/></symbol>
+ <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 9h13l-4-4"/><path d="M20 15H7l4 4"/></symbol>
   <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
 </svg>
 
@@ -280,6 +288,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
     <button class="tab" role="tab" data-mode="card"><svg class="i"><use href="#i-card"/></svg>KTP &amp; Kartu</button>
     <button class="tab" role="tab" data-mode="doc"><svg class="i"><use href="#i-doc"/></svg>Dokumen</button>
+    <button class="tab" role="tab" data-view="sender"><svg class="i"><use href="#i-send"/></svg>KLM Sender</button>
   </nav>
   <div class="spacer"></div>
   <div class="top-actions">
@@ -323,6 +332,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
       <button class="btn mint" id="pdfBtn"><svg class="i"><use href="#i-pdf"/></svg>PDF</button>
       <button class="btn" id="pngBtn"><svg class="i"><use href="#i-img"/></svg>PNG</button>
       <button class="btn" id="jpgBtn"><svg class="i"><use href="#i-dl"/></svg>JPG</button>
+      <button class="btn" id="sendBtn" title="Kirim hasil cetak lewat KLM Sender"><svg class="i"><use href="#i-send"/></svg>Kirim</button>
       <span class="grow"></span>
       <label class="fld" style="flex-direction:row;align-items:center;gap:6px"><span>Resolusi</span>
         <select class="pick" data-k="dpi" id="dpiSel"><option value="150">150 dpi</option><option value="200">200 dpi</option><option value="300">300 dpi</option><option value="600">600 dpi</option></select></label>
@@ -470,6 +480,14 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
     </div>
   </aside>
 </main>
+<section class="sender-view" id="senderView" hidden aria-label="KLM Sender">
+  <div class="sv-bar">
+    <div class="sv-txt"><b>KLM Sender</b><span>Foto dan PDF yang diterima langsung masuk ke daftar Foto. Hasil cetak juga bisa dikirim ke perangkat lain.</span></div>
+    <button class="btn sm mint" id="svSend"><svg class="i"><use href="#i-pdf"/></svg>Kirim hasil cetak (PDF)</button>
+    <button class="btn sm" id="svBack"><svg class="i"><use href="#i-print"/></svg>Ke lembar cetak</button>
+  </div>
+  <div class="sv-frame" id="svFrame"></div>
+</section>
 
 <!-- EDITOR -->
 <dialog id="editor" aria-label="Edit foto">
@@ -559,7 +577,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
   </div>
 </dialog>
 
-<input type="file" id="fileIn" accept="image/*" multiple hidden>
+<input type="file" id="fileIn" accept="image/*,application/pdf,.pdf" multiple hidden>
 <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
 <div id="globalBusy" hidden><div><span class="spin"></span><span id="gbTxt">Memproses…</span></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
@@ -589,6 +607,7 @@ const DEF={mode:'pas',theme:'system',paper:'A4',orient:'portrait',pw:210,ph:297,
   frame:{style:'none',color:'#FFFFFF',width:2,radius:0},
   calib:{sx:100,sy:100,ox:0,oy:0},
   pas:{jobs:[{photo:null,size:'3x4',count:4,cw:30,ch:40},{photo:null,size:'2x3',count:4,cw:20,ch:30}],gap:2,align:'left',sort:'1',caption:''},
+  senderOn:false,
   grid:{rows:3,cols:2,gap:4,fit:'cover',source:'repeat',autorot:true,photos:[],pages:1,caption:'',capSize:10},
   card:{type:'ktp',orientF:'auto',orientB:'auto',cw:85.6,ch:53.98,front:null,back:null,layout:'stack',pos:'top',scale:'100',copies:1,gap:10,radius:3,gray:false,outline:true},
   doc:{pages:[],per:'1',fit:'contain',scale:100,autorot:true,outline:false}};
@@ -596,8 +615,7 @@ function clone(o){return JSON.parse(JSON.stringify(o))}
 function merge(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&a[k]&&typeof a[k]==='object')merge(a[k],b[k]);else if(k in a)a[k]=b[k]}return a}
 let S=clone(DEF);
 try{const sv=JSON.parse(localStorage.getItem('klmcetak.v1')||'null');if(sv)S=merge(clone(DEF),sv)}catch(e){}
-// foto tidak disimpan antar sesi → kosongkan rujukan
-S.pas.jobs.forEach(j=>j.photo=null);S.grid.photos=[];S.card.front=S.card.back=null;S.doc.pages=[];
+/* rujukan foto dipulihkan dari IndexedDB saat aplikasi dibuka (lihat restoreSession) */
 const photos=new Map();let seq=0;
 const V={page:0,pages:[],pxmm:1,pendingSlot:null};
 let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem('klmcetak.v1',JSON.stringify(S))}catch(e){}},300)}
@@ -805,10 +823,29 @@ async function getMatte(p){
 function scaledData(c,w,h){const t=cv(w,h),x=ctx2(t);x.imageSmoothingQuality='high';x.drawImage(c,0,0,w,h);return x.getImageData(0,0,w,h).data}
 
 /* --- foto & pipeline --- */
-function newPhoto(img,name){
+/* ---------- penyimpanan foto di perangkat (IndexedDB) agar tidak hilang saat refresh ---------- */
+const DB={db:null,async open(){if(this.db)return this.db;this.db=await new Promise((res,rej)=>{const r=indexedDB.open('klmcetak',1);r.onupgradeneeded=()=>r.result.createObjectStore('photos',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});return this.db},
+  async tx(mode,fn){try{const db=await this.open();return await new Promise((res,rej)=>{const t=db.transaction('photos',mode),st=t.objectStore('photos');const out=fn(st);t.oncomplete=()=>res(out&&out.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}catch(e){console.warn('IndexedDB',e);return null}},
+  put(r){return this.tx('readwrite',st=>st.put(r))},del(id){return this.tx('readwrite',st=>st.delete(id))},clear(){return this.tx('readwrite',st=>st.clear())},all(){return this.tx('readonly',st=>st.getAll())}};
+function photoMeta(p){return{name:p.name,rot:p.rot,flip:p.flip,flipV:p.flipV,tilt:p.tilt,warp:p.warp,warpAspect:p.warpAspect,adj:p.adj,bg:p.bg,framing:p.framing}}
+const persistT=new Map();
+function persist(p){if(!p||!p.srcBlob||!photos.has(p.id))return;clearTimeout(persistT.get(p.id));
+  persistT.set(p.id,setTimeout(()=>{if(photos.has(p.id))DB.put({id:p.id,n:+p.id.slice(1),blob:p.srcBlob,meta:JSON.parse(JSON.stringify(photoMeta(p)))})},400))}
+async function restoreSession(){
+  const recs=await DB.all();
+  if(recs&&recs.length){gbusy(true,'Memulihkan pekerjaan…');recs.sort((a,b)=>a.n-b.n);
+    for(const r of recs){try{const img=await loadImgFile(r.blob);const p=newPhoto(img,r.meta?.name,r.blob,r.id);Object.assign(p,JSON.parse(JSON.stringify(r.meta||{})));p.bg={...{on:false,color:'#C8102E',method:'ai',tol:28,feather:1,hair:70},...p.bg};seq=Math.max(seq,r.n||0)}catch(e){DB.del(r.id)}}}
+  // rujukan yang fotonya sudah tidak ada dibersihkan
+  const ok=id=>id&&photos.has(id);
+  S.pas.jobs.forEach(j=>{if(!ok(j.photo))j.photo=null});S.grid.photos=S.grid.photos.filter(ok);if(!ok(S.card.front))S.card.front=null;if(!ok(S.card.back))S.card.back=null;S.doc.pages=S.doc.pages.filter(ok);
+  refreshAll();
+  for(const p of photos.values()){$('#gbTxt').textContent='Menyiapkan '+p.name+'…';await processPhoto(p)}
+  gbusy(false);refreshAll();if(recs&&recs.length)toast(recs.length+' foto dipulihkan')}
+function newPhoto(img,name,srcBlob,fixedId){
   const k=Math.min(1,3200/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
   const o=cv((img.naturalWidth||img.width)*k,(img.naturalHeight||img.height)*k);const x=o.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(img,0,0,o.width,o.height);
-  const p={id:'f'+(++seq),name:(name||'Foto '+seq).replace(/\.[^.]+$/,''),orig:o,rot:0,flip:false,flipV:false,tilt:0,warp:null,warpAspect:'free',
+  const id=fixedId||('f'+(++seq));
+  const p={id,srcBlob:srcBlob||null,name:(name||'Foto '+seq).replace(/\.[^.]+$/,''),orig:o,rot:0,flip:false,flipV:false,tilt:0,warp:null,warpAspect:'free',
     adj:{bright:0,contrast:0,sat:0,warm:0,sharp:0,denoise:0,smooth:0,upscale:'1',auto:false,filter:'none'},
     bg:{on:false,color:'#C8102E',method:'ai',tol:28,feather:1,hair:70},framing:{},out:null,thumb:''};
   photos.set(p.id,p);return p}
@@ -847,7 +884,7 @@ async function processPhotoRaw(p){
     for(let i=0;i<d.length;i+=4){const al=md[i+3]/255;if(al<1){d[i]=d[i]*al+cr*(1-al);d[i+1]=d[i+1]*al+cg*(1-al);d[i+2]=d[i+2]*al+cb*(1-al)}}}
   x.putImageData(id,0,0);
   if(tok!==p._tok)return false;
-  p.out=c;p._gray=null;
+  p.out=c;p._gray=null;persist(p);
   const tk=Math.min(1,160/Math.max(w,h)),t=cv(w*tk,h*tk),tx=t.getContext('2d');tx.imageSmoothingQuality='high';tx.drawImage(c,0,0,t.width,t.height);p.thumb=t.toDataURL('image/jpeg',0.8);
   return true}
 function grayOf(p){if(p._gray&&p._grayOf===p.out)return p._gray;const c=cv(p.out.width,p.out.height),x=ctx2(c);x.drawImage(p.out,0,0);const id=x.getImageData(0,0,c.width,c.height);applyFilter(id.data,c.width,c.height,'gray');tone(id.data,{bright:0,contrast:12,sat:0,warm:0});x.putImageData(id,0,0);p._gray=c;p._grayOf=p.out;return c}
@@ -933,7 +970,7 @@ function drawImageInRect(ctx,img,x,y,w,h,o){
 function curRotOf(p,it,fr){if(fr.rot!=null)return fr.rot;const fp=fitParams(p.out||geo(p),it.w,it.h,{fit:it.fit,autorot:it.autorot});return fp.rot?270:0}
 function rotateContent(pid,dir,filter){const p=photos.get(pid);if(!p)return;const done=new Set();
   V.pages.forEach(pg=>pg.items.forEach(it=>{if(it.pid!==pid||(filter&&!filter(it)))return;const k=aspectKey(it.w,it.h);if(done.has(k))return;done.add(k);
-    const fr=framingFor(p,it);fr.rot=(curRotOf(p,it,fr)+dir+360)%360;fr.cx=.5;fr.cy=.5;p.framing[k]=fr}));draw()}
+    const fr=framingFor(p,it);fr.rot=(curRotOf(p,it,fr)+dir+360)%360;fr.cx=.5;fr.cy=.5;p.framing[k]=fr}));persist(p);draw()}
 function framingFor(p,it){const fr=p.framing[aspectKey(it.w,it.h)];return fr?{...fr}:{zoom:1,cx:.5,cy:.5}}
 function innerRect(it,k){const fr=it.frame||{style:'none'},bw=(num(fr.width)||0)*k;let x=it.x*k,y=it.y*k,w=it.w*k,h=it.h*k;
   if(fr.style==='putih'||fr.style==='gelombang'){x+=bw;y+=bw;w-=2*bw;h-=2*bw}
@@ -1042,10 +1079,7 @@ function renderCardSlots(){
   const C=S.card;$('#cardSlots').innerHTML=[['front','Depan'],['back','Belakang']].map(([sd,lb])=>{const p=photos.get(C[sd]);
     return `<div class="slot" data-side="${sd}"><div class="lbl">${lb}</div><div class="thumb" data-act="cardUp">${p&&p.thumb?`<img src="${p.thumb}" alt="">`:'Ketuk untuk<br>unggah foto'}</div>
     <select data-act="cardSel" aria-label="Foto ${lb}">${photoOpts(C[sd])}</select>
-    <select data-act="cardOrient" aria-label="Arah ${lb}">${[['auto','Arah: sesuai kartu'],['h','Arah: mendatar'],['v','Arah: tegak']].map(([v,t])=>`<option value="${v}"${C[sd==='back'?'orientB':'orientF']===v?' selected':''}>${t}</option>`).join('')}</select>
-    <div class="acts"><button class="btn sm" data-act="cardRotL"${p?'':' disabled'} title="Putar isi ke kiri 90°">${icon('i-rl')}</button><button class="btn sm" data-act="cardRot"${p?'':' disabled'} title="Putar isi ke kanan 90°">${icon('i-rr')}</button></div>
-    ${p?`<label class="fld" style="font-size:12px"><span>Miring <b>${fmt(num(p.tilt))}°</b></span><input type="range" min="-45" max="45" step="0.5" value="${num(p.tilt)}" data-act="tiltCard"></label>`:''}
-    <div class="acts"><button class="btn sm" data-act="cardCrop"${p?'':' disabled'}>${icon('i-crop')}Luruskan</button><button class="btn sm icon ghost" data-act="cardEdit"${p?'':' disabled'} aria-label="Edit">${icon('i-edit')}</button><button class="btn sm icon ghost" data-act="cardDel"${p?'':' disabled'} aria-label="Hapus" title="Hapus">${icon('i-trash')}</button></div></div>`}).join('')}
+    <div class="acts"><button class="btn sm" data-act="cardEdit"${p?'':' disabled'}>${icon('i-edit')}Edit</button><button class="btn sm icon ghost" data-act="cardDel"${p?'':' disabled'} aria-label="Hapus" title="Hapus">${icon('i-trash')}</button></div></div>`}).join('')}
 function renderDocList(){
   const D=S.doc;$('#docList').innerHTML=D.pages.length?D.pages.map((id,i)=>{const p=photos.get(id);if(!p)return'';return `<div class="it" data-i="${i}">${thumbHtml(p)}<div style="min-width:0"><div class="nm">${i+1}. ${esc(p.name)}</div>
     <select data-act="docFilter" aria-label="Filter">${FILTERS.map(f=>`<option value="${f[0]}"${p.adj.filter===f[0]?' selected':''}>${f[1]}</option>`).join('')}</select>
@@ -1065,17 +1099,46 @@ function fillInputs(){
   $('#frameSw').innerHTML=FRAME_COLORS.map(c=>`<button class="sw${S.frame.color.toUpperCase()===c?' on':''}" style="background:${c}" data-fcol="${c}" aria-label="Warna ${c}"></button>`).join('')+`<label class="sw" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" title="Warna lain"><input type="color" id="fcolPick" value="${S.frame.color}"></label>`;
   $('#calibTxt').textContent=`Skala ${fmt(S.calib.sx,2)}% × ${fmt(S.calib.sy,2)}%`;
   $$('#gridPresets button').forEach(b=>b.classList.toggle('on',+b.dataset.c===+S.grid.cols&&+b.dataset.r===+S.grid.rows))}
-function setMode(m){S.mode=m;$$('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.mode===m));$$('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==m);
+function ensureSender(){let f=$('#svFrame iframe');if(!f){f=document.createElement('iframe');f.title='KLM Sender';f.src='sender/index.html';f.setAttribute('allow','camera; clipboard-write; fullscreen');$('#svFrame').appendChild(f);
+    f.addEventListener('load',()=>syncSenderTheme())}if(!S.senderOn){S.senderOn=true;save()}return f}
+function syncSenderTheme(){try{const d=$('#svFrame iframe').contentDocument.documentElement;if(S.theme==='system')d.removeAttribute('data-theme');else d.setAttribute('data-theme',S.theme)}catch(e){}}
+function showView(v){V.view=v;const sv=v==='sender';$('main.app').hidden=sv;$('#senderView').hidden=!sv;
+  $$('.tab').forEach(t=>t.setAttribute('aria-selected',sv?t.dataset.view==='sender':t.dataset.mode===S.mode));if(sv)ensureSender();else draw()}
+const KLMCF=window.KLMCF={q:Promise.resolve(),
+  receive(file){this.q=this.q.then(async()=>{await addFiles([file]);toast('Diterima dari KLM Sender: '+file.name)}).catch(()=>{})}};
+async function buildPdfBlob(){const pages=V.pages.length?V.pages:layout();if(!hasPhotos(pages))throw new Error('kosong');if(!window.jspdf)throw new Error('jspdf');
+  const[W,H]=paperDims(),o=W>H?'l':'p',pdf=new window.jspdf.jsPDF({unit:'mm',format:[W,H],orientation:o,compress:true});
+  for(let i=0;i<pages.length;i++){$('#gbTxt').textContent=`Membuat PDF ${i+1}/${pages.length}…`;await tick();if(i)pdf.addPage([W,H],o);const c=renderFull(pages[i],num(S.dpi));pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',0,0,W,H,undefined,'FAST')}
+  return pdf.output('blob')}
+async function sendViaSender(){const f=ensureSender();let w;try{w=f.contentWindow}catch(e){}
+  if(!w||!w.__klmQueue){showView('sender');toast('KLM Sender sedang disiapkan. Hubungkan perangkat, lalu tekan Kirim lagi.');return}
+  if(!w.__klmTargets()){showView('sender');toast('Hubungkan dan pilih perangkat tujuan dulu.');return}
+  gbusy(true,'Membuat PDF…');try{const b=await buildPdfBlob();w.__klmQueue([new File([b],fileBase()+'.pdf',{type:'application/pdf'})]);showView('sender');toast('PDF dikirim lewat KLM Sender')}
+  catch(e){toast(e.message==='kosong'?'Belum ada foto di lembar untuk dikirim.':'Gagal membuat PDF. Sambungkan internet sekali, lalu coba lagi.')}finally{gbusy(false)}}
+function setMode(m){S.mode=m;V.view='print';$('main.app').hidden=false;$('#senderView').hidden=true;$$('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.mode===m));$$('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==m);
   $('#optTitle').textContent={pas:'Pas Foto',grid:'Layout Grid',card:'KTP & Kartu',doc:'Dokumen'}[m];V.page=0;fillInputs();save();draw()}
 function refreshAll(){renderLib();renderPanels();fillInputs();draw()}
 
 /* ============ TAMBAH FOTO ============ */
 function loadImgFile(f){return new Promise((res,rej)=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{res(im);setTimeout(()=>URL.revokeObjectURL(u),1000)};im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('img'))};im.src=u})}
+const isPdf=f=>/pdf/i.test(f.type)||/\.pdf$/i.test(f.name);
+let pdfP=null;
+function loadPdfJs(){if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);if(pdfP)return pdfP;
+  pdfP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=()=>{try{window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';res(window.pdfjsLib)}catch(e){rej(e)}};s.onerror=()=>rej(new Error('pdfjs'));document.head.appendChild(s)});
+  pdfP.catch(()=>{pdfP=null});return pdfP}
+async function pdfPages(f){const lib=await loadPdfJs();const doc=await lib.getDocument({data:await f.arrayBuffer()}).promise;const out=[];
+  for(let i=1;i<=doc.numPages;i++){$('#gbTxt').textContent=`Membuka PDF halaman ${i}/${doc.numPages}…`;const pg=await doc.getPage(i);const v0=pg.getViewport({scale:1});const sc=Math.min(4,2480/Math.max(v0.width,v0.height));
+    const v=pg.getViewport({scale:sc}),c=cv(v.width,v.height),x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:x,viewport:v}).promise;
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.93));out.push({c,blob,name:f.name.replace(/\.pdf$/i,'')+(doc.numPages>1?' hal '+i:'')})}
+  return out}
 async function addFiles(files,slot){
-  const list=[...files].filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|webp|gif|bmp|heic)$/i.test(f.name));
-  if(!list.length){toast('Pilih file gambar (JPG, PNG, atau WEBP).');return}
+  const list=[...files].filter(f=>/^image\//.test(f.type)||isPdf(f)||/\.(jpe?g|png|webp|gif|bmp|heic)$/i.test(f.name));
+  if(!list.length){toast('Pilih file gambar (JPG, PNG, WEBP) atau PDF.');return}
   gbusy(true,'Memuat foto…');const added=[];
-  for(const f of list){try{added.push(newPhoto(await loadImgFile(f),f.name))}catch(e){toast('Tidak bisa membuka '+f.name+'. Coba simpan ulang sebagai JPG.')}}
+  for(const f of list){
+    if(isPdf(f)){try{for(const pg of await pdfPages(f)){const p=newPhoto(pg.c,pg.name,pg.blob);added.push(p);persist(p)}}catch(e){toast('PDF '+f.name+' tidak bisa dibuka. Perlu internet sekali untuk memuat pembaca PDF.',4000)}continue}
+    try{const p=newPhoto(await loadImgFile(f),f.name,f);added.push(p);persist(p)}catch(e){toast('Tidak bisa membuka '+f.name+'. Coba simpan ulang sebagai JPG.')}}
   if(!added.length){gbusy(false);return}
   assignNew(added,slot);renderLib();renderPanels();draw();
   for(const p of added){$('#gbTxt').textContent='Menyiapkan '+p.name+'…';await processPhoto(p)}
@@ -1098,7 +1161,7 @@ function assignSlot(s,id){
   else if(s.kind==='card'){S.card[s.side]=id}
   else if(s.kind==='doc'){if(s.i==null)S.doc.pages.push(id);else S.doc.pages[s.i]=id}}
 function pickFiles(slot,cam){V.pendingSlot=slot||null;const inp=cam?$('#camIn'):$('#fileIn');inp.value='';inp.click()}
-function removePhoto(id){photos.delete(id);S.pas.jobs.forEach(j=>{if(j.photo===id)j.photo=null});S.grid.photos=S.grid.photos.filter(x=>x!==id);
+function removePhoto(id){photos.delete(id);DB.del(id);S.pas.jobs.forEach(j=>{if(j.photo===id)j.photo=null});S.grid.photos=S.grid.photos.filter(x=>x!==id);
   if(S.card.front===id)S.card.front=null;if(S.card.back===id)S.card.back=null;S.doc.pages=S.doc.pages.filter(x=>x!==id);refreshAll()}
 
 /* ============ EDITOR ============ */
@@ -1182,7 +1245,7 @@ function drawFramer(){const c=$('#frCanvas'),[w,h]=frSize(),dpr=Math.min(2,devic
     x.beginPath();x.moveTo(0,h*0.12);x.lineTo(w,h*0.12);x.moveTo(0,h*0.78);x.lineTo(w,h*0.78);x.moveTo(w/2,0);x.lineTo(w/2,h);x.stroke();
     x.setLineDash([]);x.fillStyle='rgba(255,107,74,.95)';x.font='800 11px Nunito,sans-serif';x.fillText('ubun-ubun',6,h*0.12-5);x.fillText('dagu',6,h*0.78-5);x.restore()}
   $('#frZoomTxt').textContent=fmt(F.fr.zoom,2)+'×'}
-function saveFraming(){F.p.framing[aspectKey(F.it.w,F.it.h)]={...F.fr};draw()}
+function saveFraming(){F.p.framing[aspectKey(F.it.w,F.it.h)]={...F.fr};persist(F.p);draw()}
 function bindFramer(){const c=$('#frCanvas');
   c.addEventListener('pointerdown',e=>{F.drag=[e.clientX,e.clientY];c.setPointerCapture(e.pointerId);c.style.cursor='grabbing'});
   c.addEventListener('pointermove',e=>{if(!F.drag)return;const dx=e.clientX-F.drag[0],dy=e.clientY-F.drag[1];F.drag=[e.clientX,e.clientY];
@@ -1238,7 +1301,8 @@ function onK(el){const k=el.dataset.k;let v=el.type==='checkbox'?el.checked:(el.
   if(k==='grid.source'||k==='card.type'){renderPanels()}
   fillInputs();save();draw()}
 function bind(){
-  $$('.tab').forEach(t=>t.addEventListener('click',()=>setMode(t.dataset.mode)));
+  $$('.tab').forEach(t=>t.addEventListener('click',()=>t.dataset.view?showView(t.dataset.view):setMode(t.dataset.mode)));
+  $('#svBack').addEventListener('click',()=>setMode(S.mode));$('#svSend').addEventListener('click',sendViaSender);$('#sendBtn').addEventListener('click',sendViaSender);
   document.addEventListener('input',e=>{const el=e.target;if(el.matches('[data-k]')&&!el.closest('dialog'))onK(el)});
   document.addEventListener('change',e=>{const el=e.target;if(el.matches('select[data-k],input[type=checkbox][data-k]')&&!el.closest('dialog'))onK(el);if(el.id==='fcolPick'){S.frame.color=el.value.toUpperCase();if(S.frame.style==='none')S.frame.style='putih';fillInputs();save();draw()}});
   $$('[data-orient]').forEach(b=>b.addEventListener('click',()=>{S.orient=b.dataset.orient;fillInputs();save();draw()}));
@@ -1301,10 +1365,10 @@ function bind(){
   $('#measX').addEventListener('change',calc);$('#measY').addEventListener('change',calc);
   // library
   $('#addBtn').addEventListener('click',()=>pickFiles(null));
-  $('#clearAll').addEventListener('click',e=>confirmTap(e.currentTarget,'Ketuk sekali lagi untuk menghapus SEMUA foto',()=>{const n=photos.size;[...photos.keys()].forEach(id=>photos.delete(id));
+  $('#clearAll').addEventListener('click',e=>confirmTap(e.currentTarget,'Ketuk sekali lagi untuk menghapus SEMUA foto',()=>{const n=photos.size;[...photos.keys()].forEach(id=>photos.delete(id));DB.clear();
     S.pas.jobs.forEach(j=>j.photo=null);S.grid.photos=[];S.card.front=S.card.back=null;S.doc.pages=[];refreshAll();toast(n+' foto dihapus')}));
   $('#edDel').addEventListener('click',e=>confirmTap(e.currentTarget,'Ketuk sekali lagi untuk menghapus foto ini',()=>{const id=E.p.id;E.p=null;$('#editor').close();removePhoto(id);toast('Foto dihapus')}));$('#camBtn').addEventListener('click',()=>pickFiles(null,true));
-  const onFiles=e=>{const s=V.pendingSlot;V.pendingSlot=null;addFiles(e.target.files,s)};$('#fileIn').addEventListener('change',onFiles);$('#camIn').addEventListener('change',onFiles);
+  const onFiles=e=>{const s=V.pendingSlot;V.pendingSlot=null;addFiles([...e.target.files],s)};$('#fileIn').addEventListener('change',onFiles);$('#camIn').addEventListener('change',onFiles);
   $('#lib').addEventListener('click',e=>{const ph=e.target.closest('.ph');if(!ph)return;const id=ph.dataset.id,b=e.target.closest('[data-lib]');
     if(b&&b.dataset.lib==='del'){confirmTap(b,'Ketuk ikon hapus sekali lagi untuk menghapus foto ini',()=>{removePhoto(id);toast('Foto dihapus')});return}
     openEditor(id)});
@@ -1325,7 +1389,7 @@ function bind(){
     if(e.key==='ArrowRight'){V.page++;draw()}if(e.key==='ArrowLeft'){V.page--;draw()}if((e.ctrlKey||e.metaKey)&&e.key==='p'){e.preventDefault();doPrint(V.pages)}});
   // tema
   const applyTheme=()=>{const r=document.documentElement;if(S.theme==='system')r.removeAttribute('data-theme');else r.setAttribute('data-theme',S.theme);
-    $('#themeBtn use').setAttribute('href',S.theme==='light'?'#i-sun':S.theme==='dark'?'#i-moon':'#i-auto');$('#themeBtn').title='Tema: '+({system:'ikuti sistem',light:'terang',dark:'gelap'}[S.theme])};
+    $('#themeBtn use').setAttribute('href',S.theme==='light'?'#i-sun':S.theme==='dark'?'#i-moon':'#i-auto');syncSenderTheme();$('#themeBtn').title='Tema: '+({system:'ikuti sistem',light:'terang',dark:'gelap'}[S.theme])};
   $('#themeBtn').addEventListener('click',()=>{S.theme={system:'light',light:'dark',dark:'system'}[S.theme];applyTheme();save();toast('Tema '+({system:'mengikuti sistem',light:'terang',dark:'gelap'}[S.theme]))});applyTheme();
   // PWA
   let deferred=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;$('#installBtn').hidden=false});
@@ -1335,6 +1399,8 @@ function bind(){
   window.addEventListener('afterprint',()=>{$('#printArea').innerHTML=''})}
 
 bind();bindEditor();bindFramer();setMode(S.mode);refreshAll();
+restoreSession();
+if(S.senderOn)ensureSender();   // tetap siap menerima file di latar belakang
 </script>
 </body>
 </html>

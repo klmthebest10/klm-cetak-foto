@@ -4,6 +4,7 @@ Aplikasi web (PWA) untuk studio foto dan digital printing: pas foto, layout grid
 
 ## Isi folder
 - `index.html` — seluruh aplikasi
+- `sender/` — KLM Sender (bertema Cetak Foto)
 - `manifest.json`, `sw.js`, `icons/` — agar bisa dipasang (install) dan jalan offline
 
 ## Cara pakai cepat
@@ -27,10 +28,12 @@ Di iPhone: Safari → Bagikan → Tambahkan ke Layar Utama.
 - **Edit foto**: perbaiki otomatis (warna pudar, noise, perbesar resolusi, pertajam), haluskan kulit, kecerahan/kontras/saturasi/kehangatan, filter, putar, cermin.
 - **Ganti warna latar** (merah, biru, putih, dll.) dengan perapian tepi rambut, AI deteksi orang (MediaPipe, unduh model sekali) atau deteksi warna dinding polos.
 - **Putar & arah per foto**: tiap foto, KTP, paspor, dan dokumen bisa diputar ↺ ↻ 90° (mis. dokumen terbalik), diluruskan bila miring (−45° s.d. 45°), dan diatur tegak/mendatar sendiri-sendiri — mis. KTP depan tegak, belakang mendatar.
+- **KLM Sender (menu baru)**: kirim/terima file antar PC dan HP langsung dari aplikasi ini (salinan utuh KLM Sender dengan tema Cetak Foto). Foto dan PDF yang diterima otomatis masuk ke daftar Foto; hasil cetak bisa dikirim sebagai PDF lewat tombol **Kirim**.
+- **PDF**: file PDF bisa diunggah, tiap halaman jadi gambar siap cetak.
 - **Bingkai**: warna, polaroid, garis, garis ganda, putus-putus, titik, gelombang, sudut bulat.
 - **Panduan potong**: garis bantu, tanda sudut, garis tepi.
 - **Kertas**: A4, F4, Letter, Legal, A5, A3, 4R, 5R, 6R, 8R, ukuran sendiri; tegak/mendatar; margin.
 - **Kalibrasi printer**: cetak halaman uji, ukur garis 100 mm, aplikasi menyesuaikan skala dan geser.
 - Tema terang/gelap, tempel foto (Ctrl+V), seret-lepas, kamera HP.
 
-Catatan: foto tidak disimpan setelah aplikasi ditutup (pengaturan tetap tersimpan). Semua pemrosesan dilakukan di perangkat; tidak ada foto yang diunggah ke server.
+Foto yang diunggah dan pengerjaannya (edit, posisi, layout) tersimpan di perangkat, jadi tidak hilang saat halaman di-refresh atau aplikasi ditutup. Semua pemrosesan dilakukan di perangkat; tidak ada foto yang diunggah ke server.

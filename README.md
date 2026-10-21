@@ -29,6 +29,7 @@ Di iPhone: Safari → Bagikan → Tambahkan ke Layar Utama.
 - **Ganti warna latar** (merah, biru, putih, dll.) dengan perapian tepi rambut, AI deteksi orang (MediaPipe, unduh model sekali) atau deteksi warna dinding polos.
 - **Putar & arah per foto**: tiap foto, KTP, paspor, dan dokumen bisa diputar ↺ ↻ 90° (mis. dokumen terbalik), diluruskan bila miring (−45° s.d. 45°), dan diatur tegak/mendatar sendiri-sendiri — mis. KTP depan tegak, belakang mendatar.
 - **KLM Sender (menu baru)**: kirim/terima file antar PC dan HP langsung dari aplikasi ini (salinan utuh KLM Sender dengan tema Cetak Foto). Foto dan PDF yang diterima otomatis masuk ke daftar Foto; hasil cetak bisa dikirim sebagai PDF lewat tombol **Kirim**.
+- **Unduh QR KLM Sender** sebagai gambar PNG siap cetak (tombol "Unduh QR" atau ketuk QR-nya).
 - **PDF**: file PDF bisa diunggah, tiap halaman jadi gambar siap cetak.
 - **Bingkai**: warna, polaroid, garis, garis ganda, putus-putus, titik, gelombang, sudut bulat.
 - **Panduan potong**: garis bantu, tanda sudut, garis tepi.

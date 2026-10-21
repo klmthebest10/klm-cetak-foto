@@ -282,7 +282,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v1.7</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -829,12 +829,18 @@ const DB={db:null,async open(){if(this.db)return this.db;this.db=await new Promi
   put(r){return this.tx('readwrite',st=>st.put(r))},del(id){return this.tx('readwrite',st=>st.delete(id))},clear(){return this.tx('readwrite',st=>st.clear())},all(){return this.tx('readonly',st=>st.getAll())}};
 function photoMeta(p){return{name:p.name,rot:p.rot,flip:p.flip,flipV:p.flipV,tilt:p.tilt,warp:p.warp,warpAspect:p.warpAspect,adj:p.adj,bg:p.bg,framing:p.framing}}
 const persistT=new Map();
-function persist(p){if(!p||!p.srcBlob||!photos.has(p.id))return;clearTimeout(persistT.get(p.id));
-  persistT.set(p.id,setTimeout(()=>{if(photos.has(p.id))DB.put({id:p.id,n:+p.id.slice(1),blob:p.srcBlob,meta:JSON.parse(JSON.stringify(photoMeta(p)))})},400))}
+let persistWarned=false;
+async function persistNow(p){if(!p||!p.srcBlob||!photos.has(p.id))return;
+  try{if(!p._buf){p._buf=await p.srcBlob.arrayBuffer();p._type=p.srcBlob.type||'image/jpeg'}   // ArrayBuffer: paling kompatibel di semua browser
+    const ok=await DB.put({id:p.id,n:+p.id.slice(1),buf:p._buf,type:p._type,meta:JSON.parse(JSON.stringify(photoMeta(p)))});
+    if(ok==null)throw new Error('put')}catch(e){if(!persistWarned){persistWarned=true;toast('Foto tidak bisa disimpan di perangkat (penyimpanan penuh atau mode penyamaran).',5000)}}}
+function persist(p,now){if(!p||!p.srcBlob)return;clearTimeout(persistT.get(p.id));if(now)return persistNow(p);persistT.set(p.id,setTimeout(()=>persistNow(p),300))}
+window.addEventListener('pagehide',()=>{persistT.forEach((t,id)=>{clearTimeout(t);persistNow(photos.get(id))});persistT.clear()});
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 async function restoreSession(){
   const recs=await DB.all();
   if(recs&&recs.length){gbusy(true,'Memulihkan pekerjaan…');recs.sort((a,b)=>a.n-b.n);
-    for(const r of recs){try{const img=await loadImgFile(r.blob);const p=newPhoto(img,r.meta?.name,r.blob,r.id);Object.assign(p,JSON.parse(JSON.stringify(r.meta||{})));p.bg={...{on:false,color:'#C8102E',method:'ai',tol:28,feather:1,hair:70},...p.bg};seq=Math.max(seq,r.n||0)}catch(e){DB.del(r.id)}}}
+    for(const r of recs){try{const blob=r.buf?new Blob([r.buf],{type:r.type||'image/jpeg'}):r.blob;const img=await loadImgFile(blob);const p=newPhoto(img,r.meta?.name,blob,r.id);if(r.buf){p._buf=r.buf;p._type=r.type}Object.assign(p,JSON.parse(JSON.stringify(r.meta||{})));p.bg={...{on:false,color:'#C8102E',method:'ai',tol:28,feather:1,hair:70},...p.bg};seq=Math.max(seq,r.n||0)}catch(e){DB.del(r.id)}}}
   // rujukan yang fotonya sudah tidak ada dibersihkan
   const ok=id=>id&&photos.has(id);
   S.pas.jobs.forEach(j=>{if(!ok(j.photo))j.photo=null});S.grid.photos=S.grid.photos.filter(ok);if(!ok(S.card.front))S.card.front=null;if(!ok(S.card.back))S.card.back=null;S.doc.pages=S.doc.pages.filter(ok);
@@ -1137,8 +1143,8 @@ async function addFiles(files,slot){
   if(!list.length){toast('Pilih file gambar (JPG, PNG, WEBP) atau PDF.');return}
   gbusy(true,'Memuat foto…');const added=[];
   for(const f of list){
-    if(isPdf(f)){try{for(const pg of await pdfPages(f)){const p=newPhoto(pg.c,pg.name,pg.blob);added.push(p);persist(p)}}catch(e){toast('PDF '+f.name+' tidak bisa dibuka. Perlu internet sekali untuk memuat pembaca PDF.',4000)}continue}
-    try{const p=newPhoto(await loadImgFile(f),f.name,f);added.push(p);persist(p)}catch(e){toast('Tidak bisa membuka '+f.name+'. Coba simpan ulang sebagai JPG.')}}
+    if(isPdf(f)){try{for(const pg of await pdfPages(f)){const p=newPhoto(pg.c,pg.name,pg.blob);added.push(p);await persist(p,true)}}catch(e){toast('PDF '+f.name+' tidak bisa dibuka. Perlu internet sekali untuk memuat pembaca PDF.',4000)}continue}
+    try{const p=newPhoto(await loadImgFile(f),f.name,f);added.push(p);await persist(p,true)}catch(e){toast('Tidak bisa membuka '+f.name+'. Coba simpan ulang sebagai JPG.')}}
   if(!added.length){gbusy(false);return}
   assignNew(added,slot);renderLib();renderPanels();draw();
   for(const p of added){$('#gbTxt').textContent='Menyiapkan '+p.name+'…';await processPhoto(p)}

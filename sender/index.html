@@ -275,6 +275,7 @@ html.embed .wrap{max-width:720px}
     <div class="row">
       <button class="small" id="copyLink"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Salin link</button>
       <button class="small" id="copyCode">Salin kode</button>
+      <button class="small" id="dlQR"><svg class="i" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>Unduh QR</button>
       <button class="small ghost" id="newCode" title="Ganti kode (butuh password)"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Ganti kode</button>
     </div>
     <p class="hint" id="lanHint" hidden></p>
@@ -528,9 +529,29 @@ function shareLink(){
   if(NATIVE){ const b=lanBase(); return (b || location.origin+'/') + '?to=' + myCode; }
   return location.origin + location.pathname + '?to=' + myCode;
 }
+/* Unduh QR sebagai gambar PNG (untuk dicetak / ditempel di meja kasir) */
+function downloadQR(){
+  const q=window.__klmQR; if(!q){ toast('QR belum siap.'); return; }
+  const n=q.getModuleCount(), W=1000, H=1260, cell=Math.floor(760/n), size=cell*n, ox=Math.round((W-size)/2), oy=150;
+  const c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
+  x.fillStyle='#FFFFFF'; x.fillRect(0,0,W,H);
+  x.fillStyle='#FF6B4A'; x.fillRect(0,0,W,22); x.fillRect(0,H-22,W,22);
+  x.fillStyle='#1E2142'; x.textAlign='center'; x.textBaseline='middle';
+  x.font='700 54px Fredoka, Nunito, Arial, sans-serif'; x.fillText('KLM Sender', W/2, 88);
+  x.fillStyle='#FFFFFF'; x.fillRect(ox-30,oy-30,size+60,size+60);
+  x.strokeStyle='#FF6B4A'; x.lineWidth=10; x.strokeRect(ox-30,oy-30,size+60,size+60);
+  x.fillStyle='#1E2142';
+  for(let r=0;r<n;r++) for(let k=0;k<n;k++) if(q.isDark(r,k)) x.fillRect(ox+k*cell, oy+r*cell, cell, cell);
+  const ty=oy+size+90;
+  x.font='700 92px "JetBrains Mono", Consolas, monospace'; x.fillText(fmtCode(myCode), W/2, ty);
+  x.font='700 40px Nunito, Arial, sans-serif'; x.fillStyle='#62688C'; x.fillText(myName||'', W/2, ty+80);
+  x.font='600 28px Nunito, Arial, sans-serif'; x.fillText('Pindai untuk terhubung dan kirim file', W/2, ty+132);
+  c.toBlob(b=>{ if(!b){ toast('Gagal membuat gambar QR.'); return; }
+    const u=URL.createObjectURL(b), a=document.createElement('a'); a.href=u; a.download='QR-KLM-Sender-'+myCode+'.png'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),4000); toast('QR diunduh.'); },'image/png');
+}
 function renderQR(){
   try{
-    const q = qrcode(0,'M'); q.addData(shareLink()); q.make();
+    const q = qrcode(0,'M'); q.addData(shareLink()); q.make(); window.__klmQR=q;
     const el=$('qr'); el.classList.remove('empty'); el.innerHTML = q.createSvgTag({cellSize:4, margin:0, scalable:true});
   }catch(e){}
   const h=$('lanHint');
@@ -1214,6 +1235,8 @@ $('scanClose').onclick=closeScanner;
 /* ---------- mulai ---------- */
 showCode(); renderPwdInfo(); renderRecent(); renderDevices(); updateStatus();
 $('devName').value = myName;
+$('dlQR').onclick = downloadQR;
+$('qr').style.cursor='pointer'; $('qr').addEventListener('click', downloadQR);
 if(window.KLM_EMBED) $('cfNote').hidden=false;
 if(myKind==='hp'){ const ic=document.querySelector('.devname svg'); if(ic) ic.outerHTML=ICON.hp; }
 if(!myName){ setStatus('busy','Isi nama'); await askName(); }

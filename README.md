@@ -25,11 +25,11 @@ Di iPhone: Safari → Bagikan → Tambahkan ke Layar Utama.
 - **KTP & Kartu**: depan + belakang (atas-bawah / kiri-kanan), ukuran asli 85,6×54 mm atau diperbesar, beberapa salinan per lembar, hitam-putih, sudut bulat. **Luruskan** foto KTP yang difoto miring dengan menggeser 4 sudut.
 - **Dokumen**: ijazah, akta, KK, surat; 1/2/4 halaman per lembar, filter **Scan bersih** (memutihkan kertas, hapus bayangan) dan **Scan H/P**.
 - **Edit foto**: perbaiki otomatis (warna pudar, noise, perbesar resolusi, pertajam), haluskan kulit, kecerahan/kontras/saturasi/kehangatan, filter, putar, cermin.
-- **Ganti warna latar** (merah, biru, putih, dll.) dengan AI deteksi orang (MediaPipe, unduh model sekali) atau deteksi warna dinding polos.
+- **Ganti warna latar** (merah, biru, putih, dll.) dengan perapian tepi rambut, AI deteksi orang (MediaPipe, unduh model sekali) atau deteksi warna dinding polos.
 - **Bingkai**: warna, polaroid, garis, garis ganda, putus-putus, titik, gelombang, sudut bulat.
 - **Panduan potong**: garis bantu, tanda sudut, garis tepi.
 - **Kertas**: A4, F4, Letter, Legal, A5, A3, 4R, 5R, 6R, 8R, ukuran sendiri; tegak/mendatar; margin.
 - **Kalibrasi printer**: cetak halaman uji, ukur garis 100 mm, aplikasi menyesuaikan skala dan geser.
-- **Hitung biaya** per lembar, tema terang/gelap, tempel foto (Ctrl+V), seret-lepas, kamera HP.
+- Tema terang/gelap, tempel foto (Ctrl+V), seret-lepas, kamera HP.
 
 Catatan: foto tidak disimpan setelah aplikasi ditutup (pengaturan tetap tersimpan). Semua pemrosesan dilakukan di perangkat; tidak ada foto yang diunggah ke server.

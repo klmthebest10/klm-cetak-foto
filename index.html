@@ -199,6 +199,22 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 .spin{width:18px;height:18px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--coral);animation:sp 0.8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 #framer{width:440px}
+#eraser{width:100vw;height:100dvh;max-width:100vw;max-height:100dvh;border-radius:0;border:0;box-shadow:none}
+#eraser[open]{display:flex;flex-direction:column}
+.ex-top,.ex-bot{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface);
+  padding:10px max(14px,env(safe-area-inset-right,0px)) 10px max(14px,env(safe-area-inset-left,0px))}
+.ex-top{border-bottom:2px solid var(--ink);padding-top:calc(10px + env(safe-area-inset-top,0px))}
+.ex-bot{border-top:2px solid var(--ink);padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+.ex-top h2{margin:0;font:700 18px/1 var(--f-disp)}
+.ex-sp{flex:1}
+.ex-seg button[aria-pressed="true"][data-exmode="erase"]{background:#E5484D;color:#fff}
+.ex-seg button[aria-pressed="true"][data-exmode="keep"]{background:var(--mint);color:#fff}
+.ex-bot .fld{flex:1;min-width:150px}
+.ex-tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ex-tools [aria-pressed="true"]{background:var(--sun);color:#1E2142}
+.ex-wrap{flex:1;min-height:0;position:relative;background-color:var(--desk);background-image:radial-gradient(var(--desk-dot) 1.4px,transparent 1.6px);background-size:18px 18px}
+#exCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:none}
+@media (max-width:600px){.ex-top h2{display:none}.ex-top{flex-wrap:nowrap;gap:6px}.ex-seg button{padding:6px 10px}.ex-seg svg{display:none}.ex-top .btn.sm{padding:5px 8px}.ex-top .btn.sm.icon{padding:0}.ex-bot{gap:6px}.ex-bot .fld{min-width:120px}}
 .fr-wrap{padding:14px;display:flex;flex-direction:column;gap:12px;align-items:center}
 #frCanvas{border:2px solid var(--ink);border-radius:6px;touch-action:none;cursor:grab;background:#fff;max-width:100%}
 .fr-wrap .fld{width:100%}
@@ -280,11 +296,15 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
   <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5 16c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M14 10h5M14 14h4"/></symbol>
  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 9h13l-4-4"/><path d="M20 15H7l4 4"/></symbol>
+  <symbol id="i-brush" viewBox="0 0 24 24"><path d="M14 4l6 6-8.5 8.5a3 3 0 0 1-2.1.9H6v-3.4a3 3 0 0 1 .9-2.1z"/><path d="M12 6l6 6"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 6l5 4-5 4"/><path d="M20 10H9a5 5 0 0 0 0 10h3"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 6L4 10l5 4"/><path d="M4 10h11a5 5 0 0 1 0 10h-3"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11V4.5a1.5 1.5 0 0 1 3 0V12M14 11V6.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-.5a6 6 0 0 1-4.6-2.2L3 16.3a1.5 1.5 0 0 1 2.3-2L8 16"/></symbol>
   <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v1.8</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v1.9</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -516,7 +536,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
         <button class="btn sm ghost" data-ed-act="cropCancel">Batal</button>
         <button class="btn sm mint" data-ed-act="cropApply">Terapkan</button>
       </div>
-      <div class="ed-canvas" id="edWrap"><canvas id="edCanvas"></canvas><div class="brush-chip" id="brushChip" hidden></div><div class="busy" id="edBusy" hidden><div><span class="spin"></span><span id="edBusyTxt">Memproses…</span></div></div></div>
+      <div class="ed-canvas" id="edWrap"><canvas id="edCanvas"></canvas><div class="busy" id="edBusy" hidden><div><span class="spin"></span><span id="edBusyTxt">Memproses…</span></div></div></div>
       <div class="ed-res" id="edRes"></div>
     </div>
     <div class="ed-side">
@@ -551,14 +571,38 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
         <label class="fld" id="tolFld"><span>Toleransi warna dinding <b data-edout="bg.tol"></b></span><input type="range" min="5" max="80" data-ed="bg.tol"></label>
         <label class="fld"><span>Detail rambut <b data-edout="bg.hair"></b></span><input type="range" min="0" max="100" data-ed="bg.hair"></label>
         <label class="fld"><span>Kehalusan tepi <b data-edout="bg.feather"></b></span><input type="range" min="0" max="6" data-ed="bg.feather"></label>
-        <div class="sec" style="gap:8px;border-top:2px dashed var(--line);padding-top:10px">
-          <b style="font:700 14px var(--f-disp)">Rapikan manual dengan kuas</b>
-          <div class="row2"><button class="btn sm" data-ed-act="brushKeep" id="bKeep">Kuas pertahankan</button><button class="btn sm" data-ed-act="brushErase" id="bErase">Kuas hapus latar</button></div>
-          <label class="fld"><span>Ukuran kuas <b id="brushSizeTxt">4</b></span><input type="range" id="brushSize" min="1" max="15" value="4"></label>
-          <div class="row2"><button class="btn sm ghost" data-ed-act="brushUndo">Urungkan coretan</button><button class="btn sm ghost" data-ed-act="brushClear">Hapus semua coretan</button></div>
-        </div>
-        <p class="note">AI potret mengunduh model ±25 MB sekali, lalu bisa dipakai offline. Naikkan <b>Detail rambut</b> bila helai rambut ikut hilang, turunkan bila sisa latar lama masih terlihat. Bagian yang masih salah: pakai <b>Kuas pertahankan</b> (mengembalikan bagian orang yang ikut terhapus) atau <b>Kuas hapus latar</b> (membuang sisa latar).</p>
+        <button class="btn primary" data-ed-act="eraser"><svg class="i"><use href="#i-brush"/></svg>Hapus &amp; Pulihkan (kuas)</button>
+        <p class="note">AI potret mengunduh model ±25 MB sekali, lalu bisa dipakai offline. Naikkan <b>Detail rambut</b> bila helai rambut ikut hilang. Untuk merapikan seperti di Canva, buka <b>Hapus &amp; Pulihkan</b>: kuas <b>Hapus</b> membuang sisa latar, kuas <b>Pulihkan</b> mengembalikan bagian foto yang ikut terhapus. Bisa diperbesar (cubit dua jari / scroll) agar presisi.</p>
       </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- HAPUS & PULIHKAN -->
+<dialog id="eraser" aria-label="Hapus dan pulihkan latar">
+  <div class="ex-top">
+    <h2>Hapus &amp; Pulihkan</h2>
+    <div class="seg ex-seg" role="group" aria-label="Kuas">
+      <button data-exmode="erase"><svg class="i"><use href="#i-brush"/></svg>Hapus</button>
+      <button data-exmode="keep"><svg class="i"><use href="#i-magic"/></svg>Pulihkan</button>
+    </div>
+    <span class="ex-sp"></span>
+    <button class="btn sm icon" id="exUndo" title="Urungkan (Ctrl+Z)" aria-label="Urungkan"><svg class="i"><use href="#i-undo"/></svg></button>
+    <button class="btn sm icon" id="exRedo" title="Ulangi (Ctrl+Shift+Z)" aria-label="Ulangi"><svg class="i"><use href="#i-redo"/></svg></button>
+    <button class="btn sm ghost" id="exCancel">Batal</button>
+    <button class="btn sm primary" id="exDone">Selesai</button>
+  </div>
+  <div class="ex-wrap" id="exWrap"><canvas id="exCanvas"></canvas><div class="busy" id="exBusy" hidden><div><span class="spin"></span><span>Memproses…</span></div></div></div>
+  <div class="ex-bot">
+    <label class="fld"><span>Ukuran kuas <b id="exSizeTxt">40</b></span><input type="range" id="exSize" min="4" max="160" value="40"></label>
+    <label class="fld"><span>Kekerasan tepi <b id="exHardTxt">60%</b></span><input type="range" id="exHard" min="0" max="95" value="60"></label>
+    <div class="ex-tools">
+      <button class="btn sm icon" id="exZout" aria-label="Perkecil">−</button>
+      <button class="btn sm" id="exFit" title="Pas layar"><span id="exZoomTxt">100%</span></button>
+      <button class="btn sm icon" id="exZin" aria-label="Perbesar">+</button>
+      <button class="btn sm icon" id="exPan" aria-pressed="false" title="Mode geser (atau dua jari)" aria-label="Geser"><svg class="i"><use href="#i-hand"/></svg></button>
+      <button class="btn sm ghost" id="exPeek"><svg class="i"><use href="#i-eye"/></svg>Tahan: asli</button>
+      <button class="btn sm ghost" id="exClear"><svg class="i"><use href="#i-trash"/></svg>Hapus semua</button>
     </div>
   </div>
 </dialog>
@@ -804,14 +848,106 @@ function guided(Ig,P,W,H,r,eps){const N=W*H,IP=new Float32Array(N),II=new Float3
   const mI=boxF(Ig,W,H,r),mP=boxF(P,W,H,r),mIP=boxF(IP,W,H,r),mII=boxF(II,W,H,r),a=new Float32Array(N),b=new Float32Array(N);
   for(let j=0;j<N;j++){const v=mII[j]-mI[j]*mI[j];a[j]=(mIP[j]-mI[j]*mP[j])/(v+eps);b[j]=mP[j]-a[j]*mI[j]}
   const ma=boxF(a,W,H,r),mb=boxF(b,W,H,r),q=new Float32Array(N);for(let j=0;j<N;j++){const v=ma[j]*Ig[j]+mb[j];q[j]=v<0?0:v>1?1:v}return q}
-function strokeLayer(strokes,W,H){
-  if(!strokes||!strokes.length)return null;const big=Math.max(W,H),c=cv(W,H),x=c.getContext('2d');
-  x.fillStyle='rgb(128,128,128)';x.fillRect(0,0,W,H);x.lineCap='round';x.lineJoin='round';
-  for(const s of strokes){const col=s.m==='keep'?'#fff':'#000';x.strokeStyle=col;x.fillStyle=col;x.lineWidth=Math.max(1,s.r*big*2);
-    const P=s.pts.map(([u,v])=>[u*W,v*H]);if(P.length===1){x.beginPath();x.arc(P[0][0],P[0][1],x.lineWidth/2,0,7);x.fill();continue}
-    x.beginPath();P.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]));x.stroke()}
-  const d=x.getImageData(0,0,W,H).data,v=new Float32Array(W*H);for(let j=0;j<W*H;j++)v[j]=d[j*4];
-  return boxF(v,W,H,Math.max(1,Math.round(big/500)))}
+/* ============ HAPUS & PULIHKAN (gaya Canva) ============ */
+/* Satu goresan = {m:'erase'|'keep', r: jari-jari (relatif sisi terpanjang), h: kekerasan 0..1, pts:[[u,v]...]} */
+function stampStroke(x,st,W,H,i0){
+  const big=Math.max(W,H),r=Math.max(0.6,st.r*big),h=Math.min(0.97,st.h??0.6),sp=Math.max(0.5,r*0.22);
+  const dot=(px,py)=>{const g=x.createRadialGradient(px,py,r*h,px,py,r);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.beginPath();x.arc(px,py,r,0,7);x.fill()};
+  const P=st.pts;let s=i0||0;
+  if(s===0){dot(P[0][0]*W,P[0][1]*H);s=1}
+  for(let i=s;i<P.length;i++){const ax=P[i-1][0]*W,ay=P[i-1][1]*H,bx=P[i][0]*W,by=P[i][1]*H,d=Math.hypot(bx-ax,by-ay),n=Math.max(1,Math.ceil(d/sp));
+    for(let k=1;k<=n;k++)dot(ax+(bx-ax)*k/n,ay+(by-ay)*k/n)}}
+function applyStrokesToAlpha(ac,strokes){if(!strokes||!strokes.length)return;const x=ac.getContext('2d'),W=ac.width,H=ac.height;
+  for(const st of strokes){x.globalCompositeOperation=st.m==='erase'?'destination-out':'source-over';stampStroke(x,st,W,H)}x.globalCompositeOperation='source-over'}
+
+const X={p:null,mode:'erase',strokes:[],redo:[],cur:null,buf:null,orig:null,M:null,T:null,z:1,tx:0,ty:0,ptrs:new Map(),pinch:null,hover:null,peek:false};
+function exSize(){return num($('#exSize').value)}
+function exHard(){return num($('#exHard').value)/100}
+async function openEraser(){
+  const p=E.p;if(!p)return;
+  const old=(p.bg.strokes||[]).map(s=>JSON.parse(JSON.stringify(s)));
+  p.bg.on=true;fillEditor();
+  // dasar = hasil latar TANPA coretan; semua coretan (lama + baru) diputar ulang di atasnya agar bisa diurungkan satu per satu
+  edBusy(true,'Menyiapkan Hapus & Pulihkan…');p.bg.strokes=[];p.bg.sv=(p.bg.sv||0)+1;await processPhoto(p);edBusy(false);
+  if(!p._mask||!p.out){p.bg.strokes=old;toast('Latar belum bisa diproses. Coba lagi.');return}
+  X.p=p;X.old=old;const W=p._mask.a.width,H=p._mask.a.height;
+  X.orig=cv(W,H);const ox=X.orig.getContext('2d');ox.imageSmoothingQuality='high';ox.drawImage(geo(p),0,0,W,H);
+  X.final=cv(W,H);const fx=X.final.getContext('2d');fx.imageSmoothingQuality='high';fx.drawImage(p.out,0,0,W,H);
+  X.buf=cv(W,H);X.M=cv(W,H);X.T=cv(W,H);X.strokes=old.slice();X.redo=[];X.cur=null;
+  exRebuild();$('#eraser').showModal();X.z=1;X.tx=0;X.ty=0;exMode(X.mode);requestAnimationFrame(exDraw)}
+function exRebuild(){const b=X.buf.getContext('2d');b.globalCompositeOperation='source-over';b.drawImage(X.final,0,0);for(const st of X.strokes)exPaint(st,0)}
+function exPaint(st,i0){
+  const W=X.buf.width,H=X.buf.height,big=Math.max(W,H),r=st.r*big+2;
+  const P=st.pts.slice(Math.max(0,(i0||0)-1));let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const[u,v]of P){x0=Math.min(x0,u*W);y0=Math.min(y0,v*H);x1=Math.max(x1,u*W);y1=Math.max(y1,v*H)}
+  x0=Math.max(0,Math.floor(x0-r));y0=Math.max(0,Math.floor(y0-r));x1=Math.min(W,Math.ceil(x1+r));y1=Math.min(H,Math.ceil(y1+r));const bw=x1-x0,bh=y1-y0;if(bw<=0||bh<=0)return;
+  const m=X.M.getContext('2d'),t=X.T.getContext('2d'),b=X.buf.getContext('2d');
+  m.clearRect(x0,y0,bw,bh);m.save();m.beginPath();m.rect(x0,y0,bw,bh);m.clip();stampStroke(m,st,W,H,i0);m.restore();
+  t.globalCompositeOperation='source-over';t.clearRect(x0,y0,bw,bh);
+  if(st.m==='erase'){t.fillStyle=X.p.bg.color;t.fillRect(x0,y0,bw,bh)}else t.drawImage(X.orig,x0,y0,bw,bh,x0,y0,bw,bh);
+  t.globalCompositeOperation='destination-in';t.drawImage(X.M,x0,y0,bw,bh,x0,y0,bw,bh);t.globalCompositeOperation='source-over';
+  b.drawImage(X.T,x0,y0,bw,bh,x0,y0,bw,bh)}
+function exView(){const wrap=$('#exWrap'),cw=wrap.clientWidth,ch=wrap.clientHeight,W=X.buf.width,H=X.buf.height,fit=Math.min((cw-24)/W,(ch-24)/H),s=fit*X.z;
+  return{cw,ch,s,ox:(cw-W*s)/2+X.tx,oy:(ch-H*s)/2+X.ty,fit}}
+function exDraw(){if(!$('#eraser').open||!X.buf)return;const c=$('#exCanvas'),wrap=$('#exWrap'),dpr=Math.min(2,devicePixelRatio||1),v=exView();
+  c.width=v.cw*dpr;c.height=v.ch*dpr;const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,v.cw,v.ch);
+  const W=X.buf.width,H=X.buf.height;x.imageSmoothingEnabled=X.z<2.5;x.imageSmoothingQuality='high';
+  x.drawImage(X.peek?X.orig:X.buf,v.ox,v.oy,W*v.s,H*v.s);
+  if(X.mode==='keep'&&!X.peek){x.save();x.globalAlpha=0.28;x.drawImage(X.orig,v.ox,v.oy,W*v.s,H*v.s);x.restore()}   // bayangan foto asli saat memulihkan
+  x.strokeStyle='rgba(30,33,66,.5)';x.lineWidth=1;x.strokeRect(v.ox-.5,v.oy-.5,W*v.s+1,H*v.s+1);
+  if(X.hover&&!X.pinch){const r=exSize()/2;x.save();x.beginPath();x.arc(X.hover[0],X.hover[1],r,0,7);x.lineWidth=2.5;x.strokeStyle='#fff';x.stroke();x.lineWidth=1.2;x.strokeStyle=X.mode==='erase'?'#E5484D':'#1FB59C';x.stroke();
+    if(exHard()<0.9){x.setLineDash([3,3]);x.beginPath();x.arc(X.hover[0],X.hover[1],r*exHard(),0,7);x.stroke()}x.restore()}
+  $('#exZoomTxt').textContent=Math.round(X.z*100)+'%';$('#exUndo').disabled=X.strokes.length<=0;$('#exRedo').disabled=!X.redo.length}
+function exMode(m){X.mode=m;$$('[data-exmode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.exmode===m));exDraw()}
+function exPt(e){const r=$('#exCanvas').getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
+function exUV(px,py){const v=exView();return[(px-v.ox)/(v.s*X.buf.width),(py-v.oy)/(v.s*X.buf.height)]}
+function exZoomAt(f,px,py){const v=exView(),nz=Math.min(12,Math.max(1,X.z*f));const k=nz/X.z;
+  // jaga titik di bawah jari tetap di tempat
+  const cx=v.cw/2,cy=v.ch/2;X.tx=(px-cx)-(px-cx-X.tx)*k;X.ty=(py-cy)-(py-cy-X.ty)*k;X.z=nz;if(X.z===1){X.tx=0;X.ty=0}exDraw()}
+function exEnd(commit){const p=X.p;if(!p||!X.buf)return;X.buf=null;$('#eraser').close();
+  p.bg.strokes=commit?X.strokes:X.old;p.bg.sv=(p.bg.sv||0)+1;p.bg.on=true;fillEditor();reprocess(true);if(commit)toast('Perapian diterapkan');
+  X.orig=X.final=X.M=X.T=null}
+function bindEraser(){
+  const c=$('#exCanvas');
+  c.addEventListener('pointerdown',e=>{e.preventDefault();c.setPointerCapture(e.pointerId);const pt=exPt(e);X.ptrs.set(e.pointerId,pt);X.hover=e.pointerType==='mouse'?pt:null;
+    if(X.ptrs.size===2){ // dua jari: batalkan goresan, mulai cubit-zoom / geser
+      if(X.cur){X.cur=null;exRebuild()}const[a,b]=[...X.ptrs.values()];X.pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1]),m:[(a[0]+b[0])/2,(a[1]+b[1])/2]};exDraw();return}
+    if(X.ptrs.size>2)return;
+    if(e.button===1||e.button===2||X.pan||e.altKey){X.drag={pt,tx:X.tx,ty:X.ty};return}
+    const v=exView(),r=exSize()/2/(v.s*Math.max(X.buf.width,X.buf.height));
+    X.cur={m:X.mode,r:+r.toFixed(5),h:+exHard().toFixed(2),pts:[exUV(...pt)]};exPaint(X.cur,0);exDraw()});
+  c.addEventListener('pointermove',e=>{const pt=exPt(e);if(e.pointerType==='mouse')X.hover=pt;
+    if(!X.ptrs.has(e.pointerId)){exDraw();return}X.ptrs.set(e.pointerId,pt);
+    if(X.pinch&&X.ptrs.size>=2){const[a,b]=[...X.ptrs.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+      X.tx+=m[0]-X.pinch.m[0];X.ty+=m[1]-X.pinch.m[1];exZoomAt(d/Math.max(1,X.pinch.d),m[0],m[1]);X.pinch={d,m};return}
+    if(X.drag){X.tx=X.drag.tx+pt[0]-X.drag.pt[0];X.ty=X.drag.ty+pt[1]-X.drag.pt[1];exDraw();return}
+    if(X.cur){X.hover=pt;const q=exUV(...pt),l=X.cur.pts[X.cur.pts.length-1];const v=exView();
+      if(Math.hypot((q[0]-l[0])*X.buf.width,(q[1]-l[1])*X.buf.height)*v.s>1.5){X.cur.pts.push(q);exPaint(X.cur,X.cur.pts.length-1);exDraw()}}});
+  const up=e=>{X.ptrs.delete(e.pointerId);if(X.ptrs.size<2)X.pinch=null;X.drag=null;
+    if(X.cur&&X.ptrs.size===0){X.cur.pts=X.cur.pts.map(([u,v])=>[+u.toFixed(4),+v.toFixed(4)]);X.strokes.push(X.cur);X.redo=[];X.cur=null}
+    if(e.pointerType!=='mouse')X.hover=null;exDraw()};
+  c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
+  c.addEventListener('pointerleave',()=>{if(!X.ptrs.size){X.hover=null;exDraw()}});
+  c.addEventListener('contextmenu',e=>e.preventDefault());
+  c.addEventListener('wheel',e=>{e.preventDefault();const[px,py]=exPt(e);if(e.ctrlKey||!e.shiftKey)exZoomAt(e.deltaY<0?1.15:1/1.15,px,py)},{passive:false});
+  $$('[data-exmode]').forEach(b=>b.addEventListener('click',()=>exMode(b.dataset.exmode)));
+  $('#exUndo').addEventListener('click',()=>{if(!X.strokes.length)return;X.redo.push(X.strokes.pop());exRebuild();exDraw()});
+  $('#exRedo').addEventListener('click',()=>{if(!X.redo.length)return;const st=X.redo.pop();X.strokes.push(st);exPaint(st,0);exDraw()});
+  $('#exZin').addEventListener('click',()=>{const v=exView();exZoomAt(1.4,v.cw/2,v.ch/2)});
+  $('#exZout').addEventListener('click',()=>{const v=exView();exZoomAt(1/1.4,v.cw/2,v.ch/2)});
+  $('#exFit').addEventListener('click',()=>{X.z=1;X.tx=0;X.ty=0;exDraw()});
+  $('#exPan').addEventListener('click',e=>{X.pan=!X.pan;e.currentTarget.setAttribute('aria-pressed',X.pan);$('#exCanvas').style.cursor=X.pan?'grab':'none'});
+  const pk=$('#exPeek'),on=e=>{e.preventDefault();X.peek=true;exDraw()},off=()=>{if(X.peek){X.peek=false;exDraw()}};
+  pk.addEventListener('pointerdown',on);pk.addEventListener('pointerup',off);pk.addEventListener('pointerleave',off);pk.addEventListener('pointercancel',off);
+  $('#exSize').addEventListener('input',e=>{$('#exSizeTxt').textContent=e.target.value;const v=exView();X.hover=X.hover||[v.cw/2,v.ch/2];exDraw()});
+  $('#exHard').addEventListener('input',e=>{$('#exHardTxt').textContent=e.target.value+'%';exDraw()});
+  $('#exCancel').addEventListener('click',()=>exEnd(false));$('#exDone').addEventListener('click',()=>exEnd(true));
+  $('#exClear').addEventListener('click',e=>confirmTap(e.currentTarget,'Ketuk sekali lagi untuk menghapus semua perapian',()=>{X.redo=X.strokes.slice().reverse();X.strokes=[];exRebuild();exDraw()}));
+  $('#eraser').addEventListener('cancel',e=>{e.preventDefault();exEnd(false)});
+  document.addEventListener('keydown',e=>{if(!$('#eraser').open)return;const k=e.key.toLowerCase();
+    if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();(e.shiftKey?$('#exRedo'):$('#exUndo')).click()}
+    else if(k==='e')exMode('erase');else if(k==='r')exMode('keep');
+    else if(k==='['||k===']'){const s=$('#exSize');s.value=num(s.value)+(k===']'?5:-5);s.dispatchEvent(new Event('input'))}});
+  new ResizeObserver(()=>exDraw()).observe($('#exWrap'))}
 function refineMatte(g,coarse,sw,sh,bg,soft){
   const sc=Math.min(1,1600/Math.max(g.width,g.height)),W=Math.max(8,Math.round(g.width*sc)),H=Math.max(8,Math.round(g.height*sc)),N=W*H;
   const ic=cv(W,H),ix=ctx2(ic);ix.imageSmoothingQuality='high';ix.drawImage(g,0,0,W,H);const I=ix.getImageData(0,0,W,H).data;
@@ -853,11 +989,9 @@ function refineMatte(g,coarse,sw,sh,bg,soft){
       if(dd>2500){ac=((I[j*4]-Bc[j*3])*dx+(I[j*4+1]-Bc[j*3+1])*dy+(I[j*4+2]-Bc[j*3+2])*dz)/dd;ac=ac<0?0:ac>1?1:ac}}
     if(soft){if(ac>=0){const fall=sstep(0.004,0.06,rv);A[j]=Math.max(A[j],(0.35+0.65*hair)*sstep(0.10,0.80,ac)*fall)}}
     else{let a=ac>=0?sstep(0.06+(1-hair)*0.15,0.85,ac):gq2[j];a=Math.max(a,sstep(0.78,0.96,A[j]));a*=sstep(0.002,0.03,rv);A[j]=a}}
-  // coretan kuas
-  const SL=strokeLayer(bg.strokes,W,H);
-  if(SL)for(let j=0;j<N;j++){const v=SL[j];if(v>129)A[j]=A[j]+(1-A[j])*Math.min(1,(v-128)/120);else if(v<127)A[j]=A[j]*Math.max(0,(v-8)/120)}
   if(bg.feather>0){const fr=Math.max(1,Math.round(bg.feather*big/1600));A=boxF(A,W,H,fr)}
-  const ac=cv(W,H),ax=ac.getContext('2d'),aid=ax.createImageData(W,H);for(let j=0;j<N;j++)aid.data[j*4+3]=A[j]*255;ax.putImageData(aid,0,0);
+  const ac=cv(W,H),ax=ac.getContext('2d'),aid=ax.createImageData(W,H);for(let j=0;j<N;j++){aid.data[j*4]=aid.data[j*4+1]=aid.data[j*4+2]=255;aid.data[j*4+3]=A[j]*255}ax.putImageData(aid,0,0);
+  applyStrokesToAlpha(ac,bg.strokes);   // Hapus & Pulihkan
   const bc=cv(W,H),bx=bc.getContext('2d'),bid=bx.createImageData(W,H);for(let j=0;j<N;j++){bid.data[j*4]=Bc[j*3];bid.data[j*4+1]=Bc[j*3+1];bid.data[j*4+2]=Bc[j*3+2];bid.data[j*4+3]=255}bx.putImageData(bid,0,0);
   return{a:ac,b:bc}}
 async function getMatte(p){
@@ -1236,10 +1370,7 @@ function fillEditor(){const p=E.p;
   $('#bgSw').innerHTML=BG_COLORS.map(([c,n])=>`<button class="sw${p.bg.color.toUpperCase()===c?' on':''}" style="background:${c}" data-bgc="${c}" title="${n}" aria-label="Latar ${n}"></button>`).join('')+`<label class="sw" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" title="Warna lain"><input type="color" id="bgPick" value="${p.bg.color}"></label>`;
   $('#tolFld').hidden=p.bg.method!=='flood';updateRes()}
 function updateRes(){const p=E.p;if(!p)return;const o=p.out||geo(p);const dpi=300;$('#edRes').textContent=`${o.width}×${o.height} px · cetak tajam hingga ${fmt(o.width/dpi*2.54)}×${fmt(o.height/dpi*2.54)} cm (300 dpi)`}
-function setBrush(m){E.brush=m;E.mode=m?'brush':'view';$('#bKeep').classList.toggle('on',m==='keep');$('#bErase').classList.toggle('on',m==='erase');
-  const c=$('#brushChip');c.hidden=!m;c.textContent=m==='keep'?'Kuas pertahankan: usap bagian orang yang hilang':'Kuas hapus: usap sisa latar lama';
-  if(m&&!E.p.bg.on){E.p.bg.on=true;fillEditor();reprocess(true)}drawEditor()}
-function setEdMode(m,aspect){if(E.brush&&m!=='brush'){E.brush=null;$('#bKeep').classList.remove('on');$('#bErase').classList.remove('on');$('#brushChip').hidden=true}E.mode=m;$('#edBarView').hidden=m!=='view';$('#edBarCrop').hidden=m!=='crop';
+function setEdMode(m,aspect){E.mode=m;$('#edBarView').hidden=m!=='view';$('#edBarCrop').hidden=m!=='crop';
   if(m==='crop'){const p=E.p;E.quad=p.warp?p.warp.map(q=>q.slice()):[[0.04,0.04],[0.96,0.04],[0.96,0.96],[0.04,0.96]];$('#cropAspect').value=aspect||p.warpAspect||'free'}
   drawEditor()}
 function edBusy(on,t){$('#edBusy').hidden=!on;if(t)$('#edBusyTxt').textContent=t}
@@ -1252,10 +1383,6 @@ function drawEditor(){
   const src=E.mode==='crop'?rotated(p):(E.cmp?geo(p):(p.out||geo(p)));const pad=E.mode==='crop'?26:14;
   const s=Math.min((cw-2*pad)/src.width,(ch-2*pad)/src.height),ox=(cw-src.width*s)/2,oy=(ch-src.height*s)/2;E.fit={ox,oy,s,w:src.width,h:src.height};
   x.imageSmoothingQuality='high';x.drawImage(src,ox,oy,src.width*s,src.height*s);
-  if(E.mode==='brush'&&E.stroke){const st=E.stroke,big=Math.max(src.width,src.height)*s;x.save();x.globalAlpha=.45;x.strokeStyle=x.fillStyle=st.m==='keep'?'#1FB59C':'#E5484D';
-    x.lineCap='round';x.lineJoin='round';x.lineWidth=Math.max(2,st.r*big*2);const P=st.pts.map(([u,v])=>[ox+u*src.width*s,oy+v*src.height*s]);
-    if(P.length===1){x.beginPath();x.arc(P[0][0],P[0][1],x.lineWidth/2,0,7);x.fill()}else{x.beginPath();P.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]));x.stroke()}x.restore()}
-  if(E.mode==='brush'&&E.hover){const big=Math.max(src.width,src.height)*s,r=Math.max(1,brushR()*big);x.save();x.strokeStyle='#fff';x.lineWidth=2;x.beginPath();x.arc(E.hover[0],E.hover[1],r,0,7);x.stroke();x.strokeStyle='#1E2142';x.lineWidth=1;x.stroke();x.restore()}
   if(E.cmp){x.fillStyle='rgba(30,33,66,.8)';x.fillRect(10,10,64,24);x.fillStyle='#fff';x.font='800 12px Nunito,sans-serif';x.fillText('ASLI',24,27)}
   if(E.mode==='crop'){const P=E.quad.map(([u,v])=>[ox+u*src.width*s,oy+v*src.height*s]);
     x.save();x.fillStyle='rgba(14,16,36,.5)';x.beginPath();x.rect(0,0,cw,ch);x.moveTo(P[0][0],P[0][1]);for(let i=3;i>=0;i--)x.lineTo(P[i][0],P[i][1]);x.closePath();x.fill('evenodd');
@@ -1266,17 +1393,9 @@ function drawEditor(){
       const k=Z*s;x.drawImage(src,sx-L/2/k,sy-L/2/k,L/k,L/k,lx,12,L,L);x.restore();
       x.strokeStyle='#FF6B4A';x.lineWidth=3;x.beginPath();x.arc(lx+L/2,12+L/2,L/2,0,7);x.stroke();x.lineWidth=1.5;x.beginPath();x.moveTo(lx+L/2-10,12+L/2);x.lineTo(lx+L/2+10,12+L/2);x.moveTo(lx+L/2,12+L/2-10);x.lineTo(lx+L/2,12+L/2+10);x.stroke()}
     x.restore()}}
-function brushR(){return num($('#brushSize').value)*0.004}
 function edPt(e){const r=$('#edCanvas').getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
 function bindEditor(){
   const c=$('#edCanvas');
-  const toUV=(mx,my)=>{const f=E.fit;return[Math.min(1,Math.max(0,(mx-f.ox)/(f.w*f.s))),Math.min(1,Math.max(0,(my-f.oy)/(f.h*f.s)))]};
-  c.addEventListener('pointerdown',e=>{if(E.mode!=='brush')return;e.preventDefault();c.setPointerCapture(e.pointerId);const[mx,my]=edPt(e);E.hover=[mx,my];E.stroke={m:E.brush,r:brushR(),pts:[toUV(mx,my)]};drawEditor()});
-  c.addEventListener('pointermove',e=>{if(E.mode!=='brush')return;const[mx,my]=edPt(e);E.hover=[mx,my];if(E.stroke){const q=toUV(mx,my),l=E.stroke.pts[E.stroke.pts.length-1];if(Math.hypot(q[0]-l[0],q[1]-l[1])>0.002)E.stroke.pts.push(q)}drawEditor()});
-  const bup=()=>{if(E.mode!=='brush'||!E.stroke)return;const p=E.p,st=E.stroke;E.stroke=null;st.pts=st.pts.map(([u,v])=>[+u.toFixed(4),+v.toFixed(4)]);st.r=+st.r.toFixed(4);
-    p.bg.strokes=(p.bg.strokes||[]).concat([st]);p.bg.sv=(p.bg.sv||0)+1;p.bg.on=true;reprocess(true)};
-  c.addEventListener('pointerup',bup);c.addEventListener('pointercancel',bup);c.addEventListener('pointerleave',()=>{if(E.mode==='brush'&&!E.stroke){E.hover=null;drawEditor()}});
-  $('#brushSize').addEventListener('input',e=>{$('#brushSizeTxt').textContent=e.target.value;drawEditor()});
   c.addEventListener('pointerdown',e=>{if(E.mode!=='crop')return;const[mx,my]=edPt(e),f=E.fit;let best=-1,bd=1e9;
     E.quad.forEach(([u,v],i)=>{const d=Math.hypot(f.ox+u*f.w*f.s-mx,f.oy+v*f.h*f.s-my);if(d<bd){bd=d;best=i}});
     if(bd<48){E.drag=best;c.setPointerCapture(e.pointerId);drawEditor()}});
@@ -1294,9 +1413,7 @@ function bindEditor(){
     const a=e.target.closest('[data-ed-act]');if(!a)return;const act=a.dataset.edAct;
     if(act==='rotL'||act==='rotR'){p.rot=(p.rot+(act==='rotL'?270:90))%360;p.warp=null;p.framing={};if(p.bg.strokes&&p.bg.strokes.length){p.bg.strokes=[];p.bg.sv++}reprocess(true)}
     else if(act==='flip'){p.flip=!p.flip;p.warp=null;reprocess(true)}
-    else if(act==='brushKeep'||act==='brushErase'){const m=act==='brushKeep'?'keep':'erase';setBrush(E.brush===m?null:m)}
-    else if(act==='brushUndo'){if(p.bg.strokes&&p.bg.strokes.length){p.bg.strokes=p.bg.strokes.slice(0,-1);p.bg.sv=(p.bg.sv||0)+1;reprocess(true)}}
-    else if(act==='brushClear'){if(p.bg.strokes&&p.bg.strokes.length){p.bg.strokes=[];p.bg.sv=(p.bg.sv||0)+1;reprocess(true);toast('Coretan kuas dihapus')}}
+    else if(act==='eraser'){openEraser()}
     else if(act==='flipV'){p.flipV=!p.flipV;p.warp=null;reprocess(true)}
     else if(act==='crop')setEdMode('crop');
     else if(act==='cropCancel')setEdMode('view');
@@ -1306,7 +1423,7 @@ function bindEditor(){
     else if(act==='auto'){const g=geo(p),big=Math.max(g.width,g.height);Object.assign(p.adj,{auto:true,denoise:Math.max(p.adj.denoise,22),sharp:Math.max(p.adj.sharp,40),upscale:big<900?'3':big<1500?'2':p.adj.upscale});fillEditor();reprocess(true);toast('Perbaikan otomatis diterapkan')}});
   $('#edDone').addEventListener('click',()=>{$('#editor').close()});
   $('#edReset').addEventListener('click',()=>{const p=E.p;p.rot=0;p.flip=false;p.flipV=false;p.tilt=0;p.warp=null;p.framing={};p.adj={bright:0,contrast:0,sat:0,warm:0,sharp:0,denoise:0,smooth:0,upscale:'1',auto:false,filter:'none'};p.bg.on=false;p.bg.strokes=[];p.bg.sv=(p.bg.sv||0)+1;fillEditor();setEdMode('view');reprocess(true)});
-  $('#editor').addEventListener('close',()=>{if(E.brush)setEdMode('view');E.mode='view';renderLib();renderPanels();draw()});
+  $('#editor').addEventListener('close',()=>{E.mode='view';renderLib();renderPanels();draw()});
   new ResizeObserver(()=>drawEditor()).observe($('#edWrap'))}
 
 /* ============ ATUR POSISI (FRAMER) ============ */
@@ -1477,7 +1594,7 @@ function bind(){
   if('serviceWorker'in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
   window.addEventListener('afterprint',()=>{$('#printArea').innerHTML=''})}
 
-bind();bindEditor();bindFramer();setMode(S.mode);refreshAll();
+bind();bindEditor();bindFramer();bindEraser();setMode(S.mode);refreshAll();
 restoreSession();
 if(S.senderOn)ensureSender();   // tetap siap menerima file di latar belakang
 </script>

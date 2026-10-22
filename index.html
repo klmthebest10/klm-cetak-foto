@@ -87,8 +87,15 @@ svg.i{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .lib{display:flex;flex-direction:column;gap:8px}
 .ph{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;padding:6px;border-radius:12px;border:2px solid transparent;cursor:pointer;background:var(--surface2)}
 .ph:hover{border-color:var(--line)}
+.tw{position:relative;display:block;width:max-content}
+.nob{position:absolute;left:-5px;top:-5px;min-width:22px;height:20px;padding:0 5px;border-radius:8px;background:var(--coral);color:#fff;border:2px solid var(--ink);font:800 11px/16px var(--f-body);text-align:center;font-variant-numeric:tabular-nums;box-shadow:1px 1px 0 var(--shadow)}
+.nol{display:inline-block;background:var(--coral-soft);color:var(--coral);font-weight:800;font-size:11px;padding:1px 6px;border-radius:6px;margin-right:2px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lib-search{width:100%}
+#edTitle{flex:1;min-width:0;border:2px solid transparent;background:transparent;font:700 18px/1.2 var(--f-disp);color:var(--ink);padding:3px 6px;border-radius:8px}
+#edTitle:hover,#edTitle:focus{border-color:var(--line);background:var(--surface2);outline:none}
+.ed-no{font:800 13px var(--f-body);background:var(--coral);color:#fff;border:2px solid var(--ink);border-radius:9px;padding:3px 8px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .ph img,.ph .noimg{width:56px;height:56px;border-radius:9px;object-fit:cover;background:var(--line);display:block}
-.ph .nm{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ph .nm{font-weight:700;font-size:13px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word;line-height:1.35}
 .ph .meta{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .ph .tags{display:flex;gap:4px;margin-top:3px;flex-wrap:wrap}
 .tag{font-size:10.5px;font-weight:800;padding:2px 6px;border-radius:6px;background:var(--mint-soft);color:var(--mint)}
@@ -311,7 +318,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.1</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.2</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -338,6 +345,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
         </div>
         <span>Seret foto ke sini, atau tempel (Ctrl+V)</span>
       </div>
+      <input class="inp lib-search" id="libSearch" type="search" placeholder="Cari no. foto / nama…" aria-label="Cari foto">
       <div class="lib" id="lib"></div>
     </div>
   </aside>
@@ -520,7 +528,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 
 <!-- EDITOR -->
 <dialog id="editor" aria-label="Edit foto">
-  <div class="dlg-h"><h2 id="edTitle">Edit foto</h2>
+  <div class="dlg-h"><span class="ed-no" id="edNo">No. –</span><input id="edTitle" aria-label="Nama foto (bisa diganti, mis. nama pelanggan)" title="Ketuk untuk mengganti nama, mis. nama pelanggan" maxlength="60">
     <button class="btn sm ghost" id="edDel"><svg class="i"><use href="#i-trash"/></svg>Hapus foto</button>
     <button class="btn sm ghost" id="edReset">Reset semua</button>
     <button class="btn sm primary" id="edDone">Selesai</button></div>
@@ -670,7 +678,7 @@ const DEF={mode:'pas',theme:'system',paper:'A4',orient:'portrait',pw:210,ph:297,
   frame:{style:'none',color:'#FFFFFF',width:2,radius:0},
   calib:{sx:100,sy:100,ox:0,oy:0},
   pas:{jobs:[{photo:null,size:'3x4',count:4,cw:30,ch:40},{photo:null,size:'2x3',count:4,cw:20,ch:30}],gap:2,align:'left',sort:'1',caption:''},
-  senderOn:false,
+  senderOn:false,nextNo:1,
   grid:{rows:3,cols:2,gap:4,fit:'cover',source:'repeat',autorot:true,photos:[],pages:1,caption:'',capSize:10},
   card:{type:'ktp',orientF:'auto',orientB:'auto',cw:85.6,ch:53.98,front:null,back:null,layout:'stack',pos:'top',scale:'100',copies:1,gap:10,radius:3,gray:false,outline:true},
   doc:{pages:[],per:'1',fit:'contain',scale:100,autorot:true,outline:false}};
@@ -1059,7 +1067,7 @@ function scaledData(c,w,h){const t=cv(w,h),x=ctx2(t);x.imageSmoothingQuality='hi
 const DB={db:null,async open(){if(this.db)return this.db;this.db=await new Promise((res,rej)=>{const r=indexedDB.open('klmcetak',1);r.onupgradeneeded=()=>r.result.createObjectStore('photos',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});return this.db},
   async tx(mode,fn){try{const db=await this.open();return await new Promise((res,rej)=>{const t=db.transaction('photos',mode),st=t.objectStore('photos');const out=fn(st);t.oncomplete=()=>res(out&&out.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}catch(e){console.warn('IndexedDB',e);return null}},
   put(r){return this.tx('readwrite',st=>st.put(r))},del(id){return this.tx('readwrite',st=>st.delete(id))},clear(){return this.tx('readwrite',st=>st.clear())},all(){return this.tx('readonly',st=>st.getAll())}};
-function photoMeta(p){return{name:p.name,rot:p.rot,flip:p.flip,flipV:p.flipV,tilt:p.tilt,warp:p.warp,warpAspect:p.warpAspect,adj:p.adj,bg:p.bg,framing:p.framing}}
+function photoMeta(p){return{no:p.no,name:p.name,rot:p.rot,flip:p.flip,flipV:p.flipV,tilt:p.tilt,warp:p.warp,warpAspect:p.warpAspect,adj:p.adj,bg:p.bg,framing:p.framing}}
 const persistT=new Map();
 let persistWarned=false;
 async function persistNow(p){if(!p||!p.srcBlob||!photos.has(p.id))return;
@@ -1073,6 +1081,7 @@ async function restoreSession(){
   const recs=await DB.all();
   if(recs&&recs.length){gbusy(true,'Memulihkan pekerjaan…');recs.sort((a,b)=>a.n-b.n);
     for(const r of recs){try{const blob=r.buf?new Blob([r.buf],{type:r.type||'image/jpeg'}):r.blob;const img=await loadImgFile(blob);const p=newPhoto(img,r.meta?.name,blob,r.id);if(r.buf){p._buf=r.buf;p._type=r.type}Object.assign(p,JSON.parse(JSON.stringify(r.meta||{})));p.bg={...{on:false,color:'#C8102E',method:'ai',tol:28,feather:1,hair:70,strokes:[],sv:0},...p.bg};seq=Math.max(seq,r.n||0)}catch(e){DB.del(r.id)}}}
+  {let mx=0;photos.forEach(p=>{mx=Math.max(mx,num(p.no))});photos.forEach(p=>{if(!p.no){p.no=++mx;persist(p)}});S.nextNo=Math.max(num(S.nextNo)||1,mx+1);save()}
   // rujukan yang fotonya sudah tidak ada dibersihkan
   const ok=id=>id&&photos.has(id);
   S.pas.jobs.forEach(j=>{if(!ok(j.photo))j.photo=null});S.grid.photos=S.grid.photos.filter(ok);if(!ok(S.card.front))S.card.front=null;if(!ok(S.card.back))S.card.back=null;S.doc.pages=S.doc.pages.filter(ok);
@@ -1082,8 +1091,8 @@ async function restoreSession(){
 function newPhoto(img,name,srcBlob,fixedId){
   const k=Math.min(1,3200/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
   const o=cv((img.naturalWidth||img.width)*k,(img.naturalHeight||img.height)*k);const x=o.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(img,0,0,o.width,o.height);
-  const id=fixedId||('f'+(++seq));
-  const p={id,srcBlob:srcBlob||null,name:(name||'Foto '+seq).replace(/\.[^.]+$/,''),orig:o,rot:0,flip:false,flipV:false,tilt:0,warp:null,warpAspect:'free',
+  const id=fixedId||('f'+(++seq));const no=fixedId?0:(S.nextNo=Math.max(1,num(S.nextNo)||1))+0;if(!fixedId){S.nextNo++;save()}
+  const p={id,no,srcBlob:srcBlob||null,name:(name||'Foto '+seq).replace(/\.[^.]+$/,''),orig:o,rot:0,flip:false,flipV:false,tilt:0,warp:null,warpAspect:'free',
     adj:{bright:0,contrast:0,sat:0,warm:0,sharp:0,denoise:0,smooth:0,upscale:'1',auto:false,filter:'none'},
     bg:{on:false,color:'#C8102E',method:'ai',tol:28,feather:1,hair:70,strokes:[],sv:0},framing:{},out:null,thumb:''};
   photos.set(p.id,p);return p}
@@ -1230,6 +1239,8 @@ function drawItem(ctx,it,k,preview){
   const irad=(st==='putih'||st==='polaroid'||st==='gelombang')?Math.max(0,rad-bw):rad;
   ctx.save();rr(ctx,ix,iy,iw,ih,irad);ctx.clip();
   if(img){const f=framingFor(p,it);drawImageInRect(ctx,img,ix,iy,iw,ih,{fit:it.fit,autorot:it.autorot,...f})}
+  if(preview&&p&&p.no&&S.showNo!==false){ctx.save();const fs=Math.max(8,Math.min(13,Math.min(iw,ih)*0.16)),t=noTxt(p);ctx.font=`800 ${fs}px Nunito,sans-serif`;const tw=ctx.measureText(t).width+fs*0.8,th=fs*1.35;
+    ctx.globalAlpha=.9;ctx.fillStyle='#FF6B4A';rr(ctx,ix+2,iy+2,tw,th,th/2.4);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle='#fff';ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillText(t,ix+2+fs*0.4,iy+2+th/2);ctx.restore()}
   else if(preview){ctx.fillStyle='#EEF1F8';ctx.fillRect(ix,iy,iw,ih);ctx.strokeStyle='#B9C1D9';ctx.setLineDash([4,4]);ctx.lineWidth=1.5;ctx.strokeRect(ix+1,iy+1,iw-2,ih-2);ctx.setLineDash([]);
     ctx.fillStyle='#8A91B4';ctx.font=`700 ${Math.max(9,Math.min(iw,ih)*0.11)}px Nunito,sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(it.label||(p?'Memproses…':'Ketuk: pilih foto'),ix+iw/2,iy+ih/2)}
   ctx.restore();
@@ -1290,15 +1301,18 @@ function updateInfo(pages){
   const hints={pas:'Ketuk foto di lembar untuk mengatur posisi wajah',grid:'Ketuk kotak untuk mengatur posisi foto',card:'Ketuk kartu untuk mengganti atau menggeser',doc:'Ketuk halaman untuk mengedit'};$('#hintTxt').textContent=hints[S.mode]}
 
 /* ============ PANEL & UI ============ */
-function photoOpts(sel,blank='— pilih foto —'){let h=`<option value="">${blank}</option>`;photos.forEach(p=>h+=`<option value="${p.id}"${p.id===sel?' selected':''}>${esc(p.name)}</option>`);return h}
-function thumbHtml(p){return p&&p.thumb?`<img src="${p.thumb}" alt="">`:`<div class="noimg"></div>`}
+const noTxt=p=>p&&p.no?String(p.no).padStart(2,'0'):'–';
+function sortedPhotos(){return[...photos.values()].sort((a,b)=>(a.no||0)-(b.no||0))}
+function photoOpts(sel,blank='— pilih foto —'){let h=`<option value="">${blank}</option>`;sortedPhotos().forEach(p=>h+=`<option value="${p.id}"${p.id===sel?' selected':''}>No. ${noTxt(p)} · ${esc(p.name)}</option>`);return h}
+function thumbHtml(p){return `<span class="tw">${p&&p.thumb?`<img src="${p.thumb}" alt="">`:`<div class="noimg"></div>`}${p?`<b class="nob">${noTxt(p)}</b>`:''}</span>`}
 function renderLib(){
   const L=$('#lib');$('#libCount').textContent=photos.size;$('#clearAll').hidden=!photos.size;
   if(!photos.size){L.innerHTML='<div class="empty-lib">Belum ada foto. Tambahkan dari galeri, kamera, atau seret ke sini.</div>';return}
-  let h='';photos.forEach(p=>{const g=p._geo||p.orig;const tags=[];if(p.adj.auto||p.adj.sharp||p.adj.denoise||num(p.adj.upscale)>1)tags.push('<span class="tag">Diperbaiki</span>');if(p.bg.on)tags.push('<span class="tag c">Latar</span>');if(p.warp)tags.push('<span class="tag">Diluruskan</span>');
-    const o=p.out||g;h+=`<div class="ph" data-id="${p.id}" title="Edit ${esc(p.name)}">${thumbHtml(p)}<div class="phi" style="min-width:0"><div class="nm">${esc(p.name)}</div><div class="meta">${o.width}×${o.height} px</div><div class="tags">${tags.join('')}</div></div>
+  const q=($('#libSearch').value||'').trim().toLowerCase(),qn=q.replace(/^no\.?\s*|^#/,'');let h='',shown=0;
+  sortedPhotos().forEach(p=>{if(q&&!(String(p.no)===String(+qn)||noTxt(p)===qn||p.name.toLowerCase().includes(q)))return;shown++;const g=p._geo||p.orig;const tags=[];if(p.adj.auto||p.adj.sharp||p.adj.denoise||num(p.adj.upscale)>1)tags.push('<span class="tag">Diperbaiki</span>');if(p.bg.on)tags.push('<span class="tag c">Latar</span>');if(p.warp)tags.push('<span class="tag">Diluruskan</span>');
+    const o=p.out||g;h+=`<div class="ph" data-id="${p.id}" title="Edit ${esc(p.name)}">${thumbHtml(p)}<div class="phi" style="min-width:0"><div class="nm"><span class="nol">No. ${noTxt(p)}</span> ${esc(p.name)}</div><div class="meta">${o.width}×${o.height} px</div><div class="tags">${tags.join('')}</div></div>
     <div class="acts"><button data-lib="edit" aria-label="Edit">${icon('i-edit')}</button><button data-lib="del" aria-label="Hapus">${icon('i-trash')}</button></div></div>`});
-  L.innerHTML=h}
+  L.innerHTML=h||`<div class="empty-lib">Tidak ada foto dengan nomor/nama "${esc(q)}".</div>`}
 function renderJobs(){
   $('#jobs').innerHTML=S.pas.jobs.map((j,i)=>{const[w,h]=pasSize(j);return `<div class="job" data-i="${i}">
     <div class="l1"><select data-act="jobPhoto" aria-label="Foto">${photoOpts(j.photo)}</select>
@@ -1309,17 +1323,17 @@ function renderJobs(){
     <div class="l2"><div class="stepper"><button data-act="jobDec" aria-label="Kurangi">−</button><input type="number" min="0" data-act="jobCount" value="${j.count<0?fitCount(w,h):j.count}" aria-label="Jumlah"><button data-act="jobInc" aria-label="Tambah">+</button></div>
     <button class="btn sm ghost" data-act="jobMax">Penuhi lembar</button><button class="btn sm ghost icon" data-act="jobDel" aria-label="Hapus ukuran">${icon('i-trash')}</button></div></div>`}).join('')}
 function renderGridList(){
-  const G=S.grid;$('#gridList').innerHTML=G.photos.length?G.photos.map((id,i)=>{const p=photos.get(id);return `<div class="it" data-i="${i}">${thumbHtml(p)}<div style="min-width:0"><div class="nm">${i+1}. ${esc(p?p.name:'?')}</div></div>
+  const G=S.grid;$('#gridList').innerHTML=G.photos.length?G.photos.map((id,i)=>{const p=photos.get(id);return `<div class="it" data-i="${i}">${thumbHtml(p)}<div style="min-width:0"><div class="nm">Urutan ${i+1} · <span class="nol">No. ${noTxt(p)}</span></div><div class="meta" style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p?p.name:'?')}</div></div>
     <div class="acts"><button data-act="gridUp" aria-label="Naik">${icon('i-uparr')}</button><button data-act="gridDel" aria-label="Hapus">${icon('i-x')}</button></div></div>`}).join(''):'<p class="note">Belum ada foto di grid. Pilih dari daftar di bawah.</p>';
   $('#gridAdd').innerHTML=photoOpts('','+ Tambah foto ke grid');
   $$('[data-show="grid.repeat"]').forEach(e=>e.hidden=G.source!=='repeat')}
 function renderCardSlots(){
   const C=S.card;$('#cardSlots').innerHTML=[['front','Depan'],['back','Belakang']].map(([sd,lb])=>{const p=photos.get(C[sd]);
-    return `<div class="slot" data-side="${sd}"><div class="lbl">${lb}</div><div class="thumb" data-act="cardUp">${p&&p.thumb?`<img src="${p.thumb}" alt="">`:'Ketuk untuk<br>unggah foto'}</div>
+    return `<div class="slot" data-side="${sd}"><div class="lbl">${lb}${p?`<span class="nol">No. ${noTxt(p)}</span>`:''}</div><div class="thumb" data-act="cardUp">${p&&p.thumb?`<img src="${p.thumb}" alt="">`:'Ketuk untuk<br>unggah foto'}</div>
     <select data-act="cardSel" aria-label="Foto ${lb}">${photoOpts(C[sd])}</select>
     <div class="acts"><button class="btn sm" data-act="cardEdit"${p?'':' disabled'}>${icon('i-edit')}Edit</button><button class="btn sm icon ghost" data-act="cardDel"${p?'':' disabled'} aria-label="Hapus" title="Hapus">${icon('i-trash')}</button></div></div>`}).join('')}
 function renderDocList(){
-  const D=S.doc;$('#docList').innerHTML=D.pages.length?D.pages.map((id,i)=>{const p=photos.get(id);if(!p)return'';return `<div class="it" data-i="${i}">${thumbHtml(p)}<div style="min-width:0"><div class="nm">${i+1}. ${esc(p.name)}</div>
+  const D=S.doc;$('#docList').innerHTML=D.pages.length?D.pages.map((id,i)=>{const p=photos.get(id);if(!p)return'';return `<div class="it" data-i="${i}">${thumbHtml(p)}<div style="min-width:0"><div class="nm">Hal. ${i+1} · <span class="nol">No. ${noTxt(p)}</span> ${esc(p.name)}</div>
     <select data-act="docFilter" aria-label="Filter">${FILTERS.map(f=>`<option value="${f[0]}"${p.adj.filter===f[0]?' selected':''}>${f[1]}</option>`).join('')}</select>
     <label class="fld" style="font-size:11.5px;margin-top:2px"><span>Miring <b>${fmt(num(p.tilt))}°</b></span><input type="range" min="-45" max="45" step="0.5" value="${num(p.tilt)}" data-act="tiltDoc"></label></div>
     <div class="acts"><button data-act="docCrop" title="Luruskan" aria-label="Luruskan">${icon('i-crop')}</button><button data-act="docRotL" title="Putar kiri 90°" aria-label="Putar kiri">${icon('i-rl')}</button><button data-act="docRot" title="Putar kanan 90°" aria-label="Putar kanan">${icon('i-rr')}</button><button data-act="docUp" aria-label="Naik">${icon('i-uparr')}</button><button data-act="docDel" title="Hapus dokumen" aria-label="Hapus dokumen">${icon('i-trash')}</button></div></div>`}).join(''):'<p class="note">Belum ada halaman. Unggah foto/scan dokumen.</p>';
@@ -1399,14 +1413,14 @@ function assignSlot(s,id){
   else if(s.kind==='card'){S.card[s.side]=id}
   else if(s.kind==='doc'){if(s.i==null)S.doc.pages.push(id);else S.doc.pages[s.i]=id}}
 function pickFiles(slot,cam){V.pendingSlot=slot||null;const inp=cam?$('#camIn'):$('#fileIn');inp.value='';inp.click()}
-function removePhoto(id){photos.delete(id);DB.del(id);S.pas.jobs.forEach(j=>{if(j.photo===id)j.photo=null});S.grid.photos=S.grid.photos.filter(x=>x!==id);
+function removePhoto(id){photos.delete(id);DB.del(id);if(!photos.size){S.nextNo=1;save()}S.pas.jobs.forEach(j=>{if(j.photo===id)j.photo=null});S.grid.photos=S.grid.photos.filter(x=>x!==id);
   if(S.card.front===id)S.card.front=null;if(S.card.back===id)S.card.back=null;S.doc.pages=S.doc.pages.filter(x=>x!==id);refreshAll()}
 
 /* ============ EDITOR ============ */
 const E={p:null,mode:'view',quad:null,drag:-1,fit:null,cmp:false,t:0};
 function edZoomAt(f,px,py){const wrap=$('#edWrap'),cx=wrap.clientWidth/2,cy=wrap.clientHeight/2,z0=E.z||1,nz=Math.min(10,Math.max(1,z0*f)),k=nz/z0;
   E.tx=(px-cx)-(px-cx-(E.tx||0))*k;E.ty=(py-cy)-(py-cy-(E.ty||0))*k;E.z=nz;if(nz===1){E.tx=E.ty=0}drawEditor()}
-function openEditor(id,o={}){const p=photos.get(id);if(!p)return;E.p=p;E.z=1;E.tx=E.ty=0;$('#edTitle').textContent=p.name;fillEditor();
+function openEditor(id,o={}){const p=photos.get(id);if(!p)return;E.p=p;E.z=1;E.tx=E.ty=0;$('#edTitle').value=p.name;$('#edNo').textContent='No. '+noTxt(p);fillEditor();
   if(!$('#editor').open)$('#editor').showModal();setEdMode(o.crop?'crop':'view',o.aspect);requestAnimationFrame(drawEditor)}
 function fillEditor(){const p=E.p;
   $$('[data-ed]').forEach(el=>{const v=getP(p,el.dataset.ed);if(el.type==='checkbox')el.checked=!!v;else el.value=v});
@@ -1621,8 +1635,11 @@ function bind(){
   $('#measX').addEventListener('change',calc);$('#measY').addEventListener('change',calc);
   // library
   $('#addBtn').addEventListener('click',()=>pickFiles(null));
+  $('#libSearch').addEventListener('input',renderLib);
+  $('#libSearch').addEventListener('keydown',e=>{if(e.key==='Enter'){const f=$('#lib .ph');if(f&&$$('#lib .ph').length===1)openEditor(f.dataset.id)}});
+  $('#edTitle').addEventListener('input',e=>{const p=E.p;if(!p)return;p.name=e.target.value.slice(0,60)||('Foto '+noTxt(p));persist(p);renderLib();renderPanels()});
   $('#clearAll').addEventListener('click',e=>confirmTap(e.currentTarget,'Ketuk sekali lagi untuk menghapus SEMUA foto',()=>{const n=photos.size;[...photos.keys()].forEach(id=>photos.delete(id));DB.clear();
-    S.pas.jobs.forEach(j=>j.photo=null);S.grid.photos=[];S.card.front=S.card.back=null;S.doc.pages=[];refreshAll();toast(n+' foto dihapus')}));
+    S.pas.jobs.forEach(j=>j.photo=null);S.grid.photos=[];S.card.front=S.card.back=null;S.doc.pages=[];S.nextNo=1;save();refreshAll();toast(n+' foto dihapus · nomor mulai lagi dari 01')}));
   $('#edDel').addEventListener('click',e=>confirmTap(e.currentTarget,'Ketuk sekali lagi untuk menghapus foto ini',()=>{const id=E.p.id;E.p=null;$('#editor').close();removePhoto(id);toast('Foto dihapus')}));$('#camBtn').addEventListener('click',()=>pickFiles(null,true));
   const onFiles=e=>{const s=V.pendingSlot;V.pendingSlot=null;addFiles([...e.target.files],s)};$('#fileIn').addEventListener('change',onFiles);$('#camIn').addEventListener('change',onFiles);
   $('#lib').addEventListener('click',e=>{const ph=e.target.closest('.ph');if(!ph)return;const id=ph.dataset.id,b=e.target.closest('[data-lib]');

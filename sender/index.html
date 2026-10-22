@@ -246,6 +246,13 @@ button:focus-visible,input:focus-visible,.btn:focus-within{outline:3px solid #5B
 .dev.off{opacity:.75;border-style:dashed;cursor:default}
 .dev.off .tick{visibility:hidden}
 .relink-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--coral);margin-right:5px;vertical-align:middle;animation:pulse 1.2s infinite}
+.pick-list{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow:auto}
+.pick-it{display:flex;align-items:center;gap:10px;padding:8px 10px;border:2px solid var(--line);border-radius:14px;background:var(--surface2);cursor:pointer}
+.pick-it:has(input:checked){border-color:var(--ink);box-shadow:3px 3px 0 var(--shadow)}
+.pick-it input{width:20px;height:20px;accent-color:var(--coral)}
+.pick-it b{display:block}.pick-it small{color:var(--muted);font-size:12px}
+.pick-it .dev-ic{width:36px;height:36px;border-radius:11px}
+.drop.flash{border-color:var(--coral)!important;background:var(--coral-soft)!important}
 .cf-note{display:flex;gap:10px;align-items:center;background:var(--mint-soft);border:2px solid var(--mint);border-radius:14px;padding:10px 14px;font-size:13px;font-weight:700;color:var(--ink)}
 html.embed #installBtn,html.embed #iosHint,html.embed header .brand{display:none!important}
 html.embed header{justify-content:flex-end;padding:6px 8px}
@@ -385,6 +392,16 @@ html.embed .wrap{max-width:720px}
     <p id="scanMsg" style="text-align:center;color:var(--ink);font-weight:600">Arahkan kamera ke QR di perangkat lain</p>
     <button id="scanClose" class="dark">Tutup</button>
   </div>
+</div>
+
+<div class="overlay" id="pickModal" hidden>
+  <form class="glass" id="pickForm" autocomplete="off">
+    <h2>Kirim ke perangkat mana?</h2>
+    <p id="pickInfo"></p>
+    <div class="pick-list" id="pickList"></div>
+    <p class="err" id="pickErr" hidden>Pilih minimal satu perangkat.</p>
+    <div class="row"><button type="button" class="ghost" id="pickAll">Pilih semua</button><span style="flex:1"></span><button type="button" class="ghost" id="pickCancel">Batal</button><button class="primary" type="submit">Kirim</button></div>
+  </form>
 </div>
 
 <div class="overlay" id="nameModal" hidden>
@@ -706,10 +723,12 @@ const pending = new Map();   // kode perangkat -> { name, batches:[] }
 const relinking = new Set(); let relinkTimer=0;
 /* perangkat yang selalu disambungkan ulang sampai diputuskan manual di salah satu perangkat */
 function loadKeep(){ try{ return JSON.parse(store.get('klm-keep')||'[]').filter(x=>x && /^[A-Z0-9]{6}$/.test(x.code)); }catch(e){ return []; } }
-let keep = loadKeep();
+let keep = [];   // tidak lagi menyimpan perangkat "hantu"; koneksi berjalan normal
+try{ store.set('klm-keep','[]'); }catch(e){}
 const lostAt = new Map();
 function saveKeep(){ store.set('klm-keep', JSON.stringify(keep)); }
-function addKeep(code, name, kind){ const o=keep.find(k=>k.code===code); keep=keep.filter(k=>k.code!==code); keep.unshift({code, name:(name&&name!=='Perangkat')?name:(o?o.name:'Perangkat'), kind:kind||(o&&o.kind)||'pc'}); keep=keep.slice(0,20); saveKeep(); }
+function addKeep(){ return; }
+function addKeepOld(code, name, kind){ const o=keep.find(k=>k.code===code); keep=keep.filter(k=>k.code!==code); keep.unshift({code, name:(name&&name!=='Perangkat')?name:(o?o.name:'Perangkat'), kind:kind||(o&&o.kind)||'pc'}); keep=keep.slice(0,20); saveKeep(); }
 function dropKeep(code){ keep=keep.filter(k=>k.code!==code); saveKeep(); lostAt.delete(code); }
 const isKept = code => keep.some(k=>k.code===code);
 function park(b, why){
@@ -729,7 +748,7 @@ function relinkTick(){
     if(!lostAt.has(code)){ lostAt.set(code, Date.now()); changed=true; }
     const e=pending.get(code); if(e) e.batches.forEach(b=>{ b.tries=(b.tries||0)+1; render(b); });
     // agar tidak saling tabrak, perangkat berkode lebih kecil yang menyambung; yang lain ikut menyambung bila sudah lama
-    const mine = myCode < code || Date.now()-lostAt.get(code) > 20000;
+    const mine = pending.has(code) || myCode < code || Date.now()-lostAt.get(code) > 20000;
     if(mine && peer && peerReady && !relinking.has(code)){
       relinking.add(code);
       try{ const c=peer.connect(PREFIX+code, {reliable:true, serialization:'raw', metadata:{name:myName, kind:myKind}}); c.__quiet=true; setupConn(c, true);
@@ -810,12 +829,23 @@ function renderDevices(){
 $('selAll').onclick = () => { links.forEach((_,c)=>selected.add(c)); renderDevices(); };
 $('selNone').onclick = () => { selected.clear(); renderDevices(); };
 function updateDrop(){
-  const t=[...selected].map(c=>links.get(c)||keep.find(k=>k.code===c)).filter(Boolean);
-  $('drop').classList.toggle('off', !t.length);
+  let t=[...selected].map(c=>links.get(c)).filter(Boolean); if(!t.length && links.size===1) t=[...links.values()];
+  $('drop').classList.toggle('off', !links.size);
   $('dropHint').innerHTML = t.length
     ? 'Kirim ke <b>'+t.map(l=>esc(l.name)).join(', ')+'</b>. Seret file ke sini atau pilih; ukuran berapa pun.'
-    : (links.size||keep.length ? 'Pilih perangkat tujuan di daftar atas.' : 'Hubungkan perangkat dulu.');
+    : (links.size ? 'Pilih file, lalu pilih perangkat tujuan.' : 'Hubungkan perangkat dulu.');
 }
+function setDropHint(t){ $('dropHint').textContent=t; $('drop').classList.add('flash'); setTimeout(()=>$('drop').classList.remove('flash'),900); }
+let pickFilesBuf=null;
+function openPicker(files){
+  pickFilesBuf=files; const list=[...links.values()];
+  $('pickList').innerHTML=list.map(l=>'<label class="pick-it"><input type="checkbox" value="'+l.code+'"'+(selected.has(l.code)?' checked':'')+'><span class="dev-ic">'+ICON[l.kind]+'</span><span><b>'+esc(l.name)+'</b><small>'+fmtCode(l.code)+'</small></span></label>').join('');
+  $('pickInfo').textContent=files.length+' file · '+fmt(files.reduce((s,f)=>s+f.size,0)); $('pickModal').hidden=false;
+}
+$('pickForm').addEventListener('submit', e => { e.preventDefault(); const codes=[...$('pickList').querySelectorAll('input:checked')].map(i=>i.value);
+  if(!codes.length){ $('pickErr').hidden=false; return; } $('pickErr').hidden=true; codes.forEach(c=>selected.add(c)); $('pickModal').hidden=true; renderDevices(); const f=pickFilesBuf; pickFilesBuf=null; queueFiles(f); });
+$('pickAll').onclick = () => $('pickList').querySelectorAll('input').forEach(i=>i.checked=true);
+$('pickCancel').onclick = () => { $('pickModal').hidden=true; pickFilesBuf=null; };
 function updateStatus(){
   const n=new Set([...links.keys(), ...keep.map(k=>k.code)]).size;
   if(n) return setStatus('linked', n+' perangkat');
@@ -911,14 +941,15 @@ function startPeer(){
   p.on('error', err => {
     if(peer!==p) return;
     const t=err.type;
-    if(t==='peer-unavailable'){ const c=(String(err.message||'').match(/klmsender-v1-([A-Z0-9]{6})/)||[])[1]; toast('Perangkat '+fmtCode(c||'')+' tidak ditemukan. Pastikan KLM Sender terbuka di sana.'); resetConnectBtn(); return; }
+    if(t==='peer-unavailable'){ const c=(String(err.message||'').match(/klmsender-v1-([A-Z0-9]{6})/)||[])[1]; if(c && (relinking.has(c) || pending.has(c))) return; if(!manualTry.has(c)) { resetConnectBtn(); return; } manualTry.delete(c); toast('Perangkat '+fmtCode(c||'')+' tidak ditemukan. Pastikan KLM Sender terbuka di sana.'); resetConnectBtn(); return; }
     if(t==='unavailable-id'){ peerStarting=true; updateStatus(); setTimeout(() => { if(peer===p) startPeer(); }, 5000); return; }
     if(t==='browser-incompatible'){ peerStarting=false; updateStatus(); return; }
     if(['network','server-error','socket-error','socket-closed'].includes(t)){ peerReady=false; peerStarting=false; updateStatus(); setTimeout(() => { if(peer===p) startPeer(); }, 10000); }
   });
 }
+const manualTry = new Set();   // hanya percobaan yang ditekan pengguna yang boleh memunculkan pesan "tidak ditemukan"
 function connectTo(code){
-  code=cleanCode(code);
+  code=cleanCode(code); manualTry.add(code);
   if(code.length!==6) return toast('Kode terdiri dari 6 karakter.');
   if(code===myCode) return toast('Itu kode perangkat ini sendiri.');
   const ex=links.get(code);
@@ -1005,8 +1036,10 @@ const relName = f => (f.webkitRelativePath || f.name);
 function queueFiles(list){
   const files = Array.from(list||[]).filter(f => f && f.size>=0);
   if(!files.length) return;
-  const targets=[...selected].map(c=>links.get(c)||(isKept(c)?{code:c, name:(keep.find(k=>k.code===c)||{}).name||'Perangkat', via:'p2p', route:'', queue:[], ghost:true}:null)).filter(Boolean);
-  if(!targets.length){ toast(links.size||keep.length ? 'Pilih perangkat tujuan dulu.' : 'Hubungkan perangkat dulu.'); return; }
+  let targets=[...selected].map(c=>links.get(c)).filter(Boolean);
+  if(!targets.length && links.size===1) targets=[...links.values()];
+  if(!targets.length && links.size>1){ openPicker(files); return; }
+  if(!targets.length){ setDropHint('Belum ada perangkat terhubung. Hubungkan perangkat dulu (masukkan kode atau pindai QR), lalu kirim lagi.'); $('peerCode').focus(); return; }
   const meta = files.map((f,i)=>({i, name:relName(f), size:f.size, type:f.type||''}));
   const total = files.reduce((s,f)=>s+f.size,0);
   for(const l of targets){
@@ -1199,7 +1232,9 @@ async function closeSink(l){
 }
 function cfAccepts(name,type){ return /^image\//.test(type||'') || /pdf/.test(type||'') || /\.(jpe?g|png|webp|gif|bmp|heic|pdf)$/i.test(name||''); }
 window.__klmQueue = list => queueFiles(list);
-window.__klmTargets = () => selected.size;
+window.__klmTargets = () => selected.size || (links.size===1 ? 1 : 0);
+window.__klmLinks = () => links.size;
+window.__klmNeedPick = () => !selected.size && links.size>1;
 function downloadItem(item){ const a=document.createElement('a'); a.href=item.url; a.download=flatName(item.name); a.rel='noopener'; document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(),100); }
 function finishIncoming(l){
   const b=l.incoming; if(!b) return;

@@ -364,7 +364,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v3.0</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v3.1</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -1480,8 +1480,9 @@ async function buildPdfBlob(){const ents=outEntries();if(!ents.length)throw new 
   return pdf.output('blob')}
 async function sendViaSender(){const f=ensureSender();let w;try{w=f.contentWindow}catch(e){}
   if(!w||!w.__klmQueue){showView('sender');toast('KLM Sender sedang disiapkan. Hubungkan perangkat, lalu tekan Kirim lagi.');return}
-  if(!w.__klmTargets()){showView('sender');toast('Hubungkan dan pilih perangkat tujuan dulu.');return}
-  gbusy(true,'Membuat PDF…');try{const b=await buildPdfBlob();w.__klmQueue([new File([b],fileBase()+'.pdf',{type:'application/pdf'})]);showView('sender');toast('PDF dikirim lewat KLM Sender')}
+  if(!w.__klmLinks()){showView('sender');toast('Hubungkan perangkat di KLM Sender dulu, lalu tekan Kirim lagi.');return}
+  const needPick=w.__klmNeedPick&&w.__klmNeedPick();
+  gbusy(true,'Membuat PDF…');try{const b=await buildPdfBlob();w.__klmQueue([new File([b],fileBase()+'.pdf',{type:'application/pdf'})]);if(needPick){showView('sender')}else toast('PDF sedang dikirim, lihat prosesnya di popup')}
   catch(e){toast(e.message==='kosong'?'Belum ada foto di lembar untuk dikirim.':'Gagal membuat PDF. Sambungkan internet sekali, lalu coba lagi.')}finally{gbusy(false)}}
 function renderSheetTabs(){const T=$('#sheetTabs');if(!T)return;
   T.innerHTML=S.sheets.map((st,i)=>{const on=i===S.cur,m=on?S.mode:st.mode;return `<div class="sht" role="tab" data-sheet="${i}" aria-selected="${on}" tabindex="0">Lembar ${i+1}<small>${MODE_NAMES[m]||''}</small>${S.sheets.length>1?`<button class="x" data-sheetdel="${i}" aria-label="Hapus lembar ${i+1}" title="Hapus lembar">${icon('i-x')}</button>`:''}</div>`}).join('')+

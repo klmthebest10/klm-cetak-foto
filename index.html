@@ -188,6 +188,15 @@ details.sec[open]>summary::after{content:"–"}
 .job .cap{font-size:11.5px;color:var(--muted);font-weight:700;margin-left:auto}
 .slots{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .slot{border:2px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px;background:var(--surface2)}
+.tgl{display:inline-flex;align-items:center;gap:5px;cursor:pointer;font:800 11px var(--f-body);color:var(--muted)}
+.tgl input{position:absolute;opacity:0;width:1px;height:1px}
+.tgl i{width:34px;height:20px;border-radius:99px;background:var(--line);border:2px solid var(--ink);position:relative;transition:background .15s}
+.tgl i::after{content:"";position:absolute;top:1px;left:1px;width:14px;height:14px;border-radius:50%;background:var(--surface);border:2px solid var(--ink);box-sizing:border-box;transition:transform .15s}
+.tgl input:checked+i{background:var(--mint)}
+.tgl input:checked+i::after{transform:translateX(14px)}
+.tgl input:focus-visible+i{outline:3px solid var(--sky);outline-offset:2px}
+.slot.off>*:not(.lbl){opacity:.4;pointer-events:none}
+.slot.off{border-style:dashed}
 .slot .lbl{font:700 13px/1 var(--f-disp);display:flex;justify-content:space-between;align-items:center}
 .slot .thumb{aspect-ratio:85.6/54;max-width:100%;border-radius:8px;background:var(--line);display:grid;place-items:center;overflow:hidden;cursor:pointer;color:var(--muted);font-size:12px;font-weight:700;text-align:center}
 .slot .thumb img{width:100%;height:100%;object-fit:cover}
@@ -339,7 +348,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.4</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.5</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -703,7 +712,7 @@ const DEF={mode:'pas',theme:'system',paper:'A4',orient:'portrait',pw:210,ph:297,
   pas:{jobs:[{photo:null,size:'3x4',count:4,cw:30,ch:40},{photo:null,size:'2x3',count:4,cw:20,ch:30}],gap:2,align:'left',sort:'1',caption:''},
   senderOn:false,nextNo:1,sheets:[],cur:0,outScope:'cur',
   grid:{rows:3,cols:2,gap:4,fit:'cover',source:'repeat',autorot:true,photos:[],pages:1,caption:'',capSize:10},
-  card:{type:'ktp',orientF:'auto',orientB:'auto',cw:85.6,ch:53.98,front:null,back:null,layout:'stack',pos:'top',scale:'100',copies:1,gap:10,radius:3,gray:false,outline:true},
+  card:{type:'ktp',useFront:true,useBack:true,orientF:'auto',orientB:'auto',cw:85.6,ch:53.98,front:null,back:null,layout:'stack',pos:'top',scale:'100',copies:1,gap:10,radius:3,gray:false,outline:true},
   doc:{pages:[],per:'1',fit:'contain',scale:100,autorot:true,outline:false}};
 function clone(o){return JSON.parse(JSON.stringify(o))}
 function merge(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&a[k]&&typeof a[k]==='object')merge(a[k],b[k]);else if(k in a)a[k]=b[k]}return a}
@@ -1206,7 +1215,9 @@ function cardSize(side){const t=CARD_TYPES[S.card.type]||CARD_TYPES.ktp;let[w,h]
 function layoutCard(){
   const[W,H]=paperDims(),m=num(S.margin),C=S.card,sc=num(C.scale)/100,g=num(C.gap);
   const[fw0,fh0]=cardSize('front'),[bw0,bh0]=cardSize('back'),fw=fw0*sc,fh=fh0*sc,ww=bw0*sc,wh=bh0*sc;
-  const side=C.layout==='side',bw=side?fw+g+ww:Math.max(fw,ww),bh=side?Math.max(fh,wh):fh+g+wh,gb=8;
+  const uF=C.useFront!==false,uB=C.useBack!==false||!uF,both=uF&&uB;   // sisi yang dimatikan tidak dicetak
+  const side=C.layout==='side',gb=8;
+  const bw=both?(side?fw+g+ww:Math.max(fw,ww)):(uF?fw:ww),bh=both?(side?Math.max(fh,wh):fh+g+wh):(uF?fh:wh);
   const cols=Math.max(1,Math.floor((W-2*m+gb)/(bw+gb))),rows=Math.max(1,Math.floor((H-2*m+gb)/(bh+gb))),per=cols*rows;
   const copies=Math.max(1,Math.round(num(C.copies))),pages=[];
   for(let k=0;k<copies;k++){const pi=Math.floor(k/per),idx=k%per;if(!pages[pi])pages[pi]={items:[]};
@@ -1215,7 +1226,8 @@ function layoutCard(){
     const ox=(W-totW)/2,oy=C.pos==='center'?(H-totH)/2:m+4;
     const c=idx%cols,r=Math.floor(idx/cols),bx=ox+c*(bw+gb),by=oy+r*(bh+gb);
     const base={fit:'cover',autorot:true,radius:num(C.radius)*sc,outline:C.outline,gray:C.gray,frame:{style:'none'}};
-    if(side){pages[pi].items.push({...base,w:fw,h:fh,pid:C.front,x:bx,y:by+(bh-fh)/2,slot:{kind:'card',side:'front'},label:'DEPAN'});
+    if(!both){const sd=uF?'front':'back';pages[pi].items.push({...base,w:uF?fw:ww,h:uF?fh:wh,pid:C[sd],x:bx,y:by,slot:{kind:'card',side:sd},label:uF?'DEPAN':'BELAKANG'})}
+    else if(side){pages[pi].items.push({...base,w:fw,h:fh,pid:C.front,x:bx,y:by+(bh-fh)/2,slot:{kind:'card',side:'front'},label:'DEPAN'});
       pages[pi].items.push({...base,w:ww,h:wh,pid:C.back,x:bx+fw+g,y:by+(bh-wh)/2,slot:{kind:'card',side:'back'},label:'BELAKANG'})}
     else{pages[pi].items.push({...base,w:fw,h:fh,pid:C.front,x:bx+(bw-fw)/2,y:by,slot:{kind:'card',side:'front'},label:'DEPAN'});
       pages[pi].items.push({...base,w:ww,h:wh,pid:C.back,x:bx+(bw-ww)/2,y:by+fh+g,slot:{kind:'card',side:'back'},label:'BELAKANG'})}}
@@ -1359,8 +1371,8 @@ function renderGridList(){
   $('#gridAdd').innerHTML=photoOpts('','+ Tambah foto ke grid');
   $$('[data-show="grid.repeat"]').forEach(e=>e.hidden=G.source!=='repeat')}
 function renderCardSlots(){
-  const C=S.card;$('#cardSlots').innerHTML=[['front','Depan'],['back','Belakang']].map(([sd,lb])=>{const p=photos.get(C[sd]);
-    return `<div class="slot" data-side="${sd}"><div class="lbl">${lb}${p?`<span class="nol">No. ${noTxt(p)}</span>`:''}</div><div class="thumb" data-act="cardUp">${p&&p.thumb?`<img src="${p.thumb}" alt="">`:'Ketuk untuk<br>unggah foto'}</div>
+  const C=S.card;$('#cardSlots').innerHTML=[['front','Depan'],['back','Belakang']].map(([sd,lb])=>{const p=photos.get(C[sd]),on=C[sd==='front'?'useFront':'useBack']!==false;
+    return `<div class="slot${on?'':' off'}" data-side="${sd}"><div class="lbl"><span>${lb}${p?` <span class="nol">No. ${noTxt(p)}</span>`:''}</span><label class="tgl" title="${on?'Matikan':'Nyalakan'} ${lb.toLowerCase()}"><input type="checkbox" data-act="cardUse"${on?' checked':''} aria-label="Cetak sisi ${lb.toLowerCase()}"><i></i><b>${on?'On':'Off'}</b></label></div><div class="thumb" data-act="cardUp">${p&&p.thumb?`<img src="${p.thumb}" alt="">`:'Ketuk untuk<br>unggah foto'}</div>
     <select data-act="cardSel" aria-label="Foto ${lb}">${photoOpts(C[sd])}</select>
     <div class="acts"><button class="btn sm" data-act="cardEdit"${p?'':' disabled'}>${icon('i-edit')}Edit</button><button class="btn sm icon ghost" data-act="cardDel"${p?'':' disabled'} aria-label="Hapus" title="Hapus">${icon('i-trash')}</button></div></div>`}).join('')}
 function renderDocList(){
@@ -1699,6 +1711,8 @@ function bind(){
     else if(act==='jobCount'){S.pas.jobs[ji].count=Math.max(0,Math.round(num(a.value)))}
     else if(act==='jobCW'){S.pas.jobs[ji].cw=num(a.value)}else if(act==='jobCH'){S.pas.jobs[ji].ch=num(a.value)}
     else if(act==='cardOrient'){const sd=a.closest('[data-side]').dataset.side;S.card[sd==='back'?'orientB':'orientF']=a.value}
+    else if(act==='cardUse'){const C=S.card,k=a.closest('[data-side]').dataset.side==='front'?'useFront':'useBack',o=k==='useFront'?'useBack':'useFront';C[k]=a.checked;
+      if(!C.useFront&&!C.useBack){C[o]=true;toast('Minimal satu sisi harus menyala')}else toast((k==='useFront'?'Depan':'Belakang')+(a.checked?' dinyalakan':' dimatikan, tidak ikut dicetak'));renderCardSlots()}
     else if(act==='cardSel'){S.card[a.closest('[data-side]').dataset.side]=a.value||null;renderCardSlots()}
     else if(act==='docFilter'){const p=photos.get(S.doc.pages[ji]);p.adj.filter=a.value;gbusy(true,'Menerapkan filter…');processPhoto(p).then(()=>{gbusy(false);renderLib();renderDocList();draw()});return}
     save();draw()});

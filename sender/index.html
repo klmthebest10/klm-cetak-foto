@@ -376,6 +376,7 @@ html.embed .wrap{max-width:720px}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="../txdock.js"></script>
 <script>
 /* PWA: service worker + tombol install (hanya di situs https, bukan di aplikasi Windows) */
 (function(){
@@ -660,14 +661,46 @@ function makeLink(code, via, name, kind){
 const isIdle = l => !l.sending && !l.queue.length && !(l.incoming && ['offer','run'].includes(l.incoming.status));
 function onNewLink(l, mine){
   if(mine || (!selected.size && links.size===1)) selected.add(l.code);
+  if(pending.has(l.code)) setTimeout(()=>{ if(links.get(l.code)===l) adoptPending(l); }, 600);
   if(pendingTo===l.code){ selected.add(l.code); pendingTo=''; }
   renderDevices(); updateStatus();
 }
+/* ---------- kiriman tidak gagal karena lama / koneksi putus: diparkir lalu dikirim ulang otomatis ---------- */
+const pending = new Map();   // kode perangkat -> { name, batches:[] }
+const relinking = new Set(); let relinkTimer=0;
+function park(b, why){
+  if(b.cancel || b.dir!=='out') return;
+  stopMeter(b); b.status='relink'; b.reason=why||('Koneksi ke '+b.link.name+' terputus.'); b.done=0; b.sentRaw=0; b.lost=false; b.tries=(b.tries||0);
+  const code=b.link.code; let e=pending.get(code); if(!e){ e={name:b.link.name, batches:[]}; pending.set(code,e); }
+  if(!e.batches.includes(b)) e.batches.push(b);
+  render(b); scheduleRelink();
+}
+function scheduleRelink(){ if(relinkTimer) return; relinkTimer=setInterval(relinkTick, 6000); setTimeout(relinkTick, 1500); }
+function relinkTick(){
+  if(!pending.size){ clearInterval(relinkTimer); relinkTimer=0; return; }
+  pending.forEach((e,code) => {
+    const l=links.get(code); if(l){ adoptPending(l); return; }
+    e.batches.forEach(b=>{ b.tries=(b.tries||0)+1; render(b); });
+    if(peer && peerReady && !relinking.has(code)){
+      relinking.add(code);
+      try{ const c=peer.connect(PREFIX+code, {reliable:true, serialization:'raw', metadata:{name:myName, kind:myKind}}); c.__quiet=true; setupConn(c, true);
+        setTimeout(()=>{ relinking.delete(code); if(!c.open){ try{c.close()}catch(_){} } }, 15000); }catch(_){ relinking.delete(code); }
+    }
+  });
+}
+function adoptPending(l){
+  const e=pending.get(l.code); if(!e) return; pending.delete(l.code);
+  const list=e.batches.filter(b=>!b.cancel); if(!list.length) return;
+  if(l.name==='Perangkat' && e.name) l.name=e.name;
+  list.forEach(b=>{ b.link=l; b.status='queue'; b.reason=''; b.done=0; b.sentRaw=0; l.queue.push(b); render(b); });
+  selected.add(l.code); renderDevices(); toast('Tersambung lagi dengan '+l.name+'. Kiriman dilanjutkan.'); runQueue(l);
+}
+setInterval(()=>{ links.forEach(l=>{ if(l.via==='p2p') lsend(l,{t:'ping'}); }); }, 15000);   // jaga koneksi tetap hidup
 function removeLink(l, quiet){
   if(links.get(l.code)!==l) return;
   links.delete(l.code); selected.delete(l.code);
   for(const f of l.waiters.values()) f('closed'); l.waiters.clear();
-  l.queue.forEach(b => { b.status='failed'; b.reason='Koneksi terputus'; render(b); }); l.queue=[];
+  l.queue.forEach(b => { if(l.manual){ b.status='cancelled'; b.reason='Perangkat diputuskan'; render(b); } else park(b); }); l.queue=[];
   if(l.cur){ l.cur.lost=true; if(l.cur.xhr) l.cur.xhr.abort(); }
   if(l.incoming && ['offer','run'].includes(l.incoming.status)) failIncoming(l,'Koneksi terputus');
   if(!quiet) toast(l.name+' terputus.');
@@ -701,7 +734,7 @@ function renderDevices(){
       d.onclick = e => { if(!e.target.closest('[data-x]')) t(); };
       d.onkeydown = e => { if(e.key===' '||e.key==='Enter'){ e.preventDefault(); t(); } };
     });
-    el.querySelectorAll('[data-x]').forEach(b => b.onclick = () => { const l=links.get(b.dataset.x); if(l){ const c=l.conn; removeLink(l,true); try{c.close()}catch(e){} toast('Diputuskan.'); } });
+    el.querySelectorAll('[data-x]').forEach(b => b.onclick = () => { const l=links.get(b.dataset.x); if(l){ const c=l.conn; l.manual=true; if(l.cur) l.cur.cancel=true; pending.delete(l.code); removeLink(l,true); try{c.close()}catch(e){} toast('Diputuskan.'); } });
   }
   for(const c of [...selected]) if(!links.has(c)) selected.delete(c);
   updateDrop();
@@ -840,7 +873,7 @@ function setupConn(c, mine){
     const l=makeLink(code,'p2p', mine?'Perangkat':String(md.name||'Perangkat').slice(0,40), mine?'pc':md.kind);
     l.conn=c; l.dc=c.dataChannel; l.dc.binaryType='arraybuffer'; l.dc.bufferedAmountLowThreshold=LOW;
     lsend(l,{t:'hello', name:myName, kind:myKind});
-    if(mine){ resetConnectBtn(); $('peerCode').value=''; }
+    if(mine && !c.__quiet){ resetConnectBtn(); $('peerCode').value=''; }
     else { l.greeted=true; toast(l.name+' terhubung.'); rememberPeer(code,l.name); }
     onNewLink(l, mine); detectRoute(l);
   };
@@ -919,15 +952,17 @@ async function runQueue(l){
     l.cur=b; b.status='wait'; render(b);
     lsend(l,{t:'offer', id:b.id, files:b.meta, total:b.total});
     const ans = await wait(l,'ans:'+b.id);
-    if(ans!=='accept'){ if(b.status==='wait') b.status = ans==='reject' ? 'rejected' : 'failed'; render(b); continue; }
+    if(ans==='closed'){ if(!b.cancel && !l.manual) park(b); else { b.status='cancelled'; render(b); } continue; }
+    if(ans!=='accept'){ if(b.status==='wait') b.status = ans==='reject' ? 'rejected' : 'failed'; if(ans==='reject' && !b.reason) b.reason='Ditolak oleh '+l.name; render(b); continue; }
     b.status='run'; b.t0=performance.now(); startMeter(b); keepAwake(true); render(b);
     try{
       if(l.via==='p2p') await sendP2P(l,b); else await sendHub(l,b);
     }catch(e){
       if(b.cancel){ b.status='cancelled'; if(!b.byPeer) lsend(l,{t:'cancel', id:b.id}); }
-      else { b.status='failed'; b.reason=b.reason||'Koneksi terputus'; }
+      else if(!l.manual && (b.lost || links.get(l.code)!==l || /closed|putus|cancel/i.test(e && e.message || ''))){ park(b, 'Koneksi terputus saat mengirim.'); continue; }
+      else { b.status='failed'; b.reason=b.reason||'Penerima gagal menyimpan file'; }
     }
-    stopMeter(b); render(b);
+    stopMeter(b); if(b.status==='done') b.secs=(performance.now()-b.t0)/1000; render(b);
   }
   l.cur=null; l.sending=false; if(!busy()) keepAwake(false);
 }
@@ -999,7 +1034,9 @@ function onOffer(l, m){
   const files=(m.files||[]).map(f=>({i:f.i, name:String(f.name||'file'), size:Math.max(0,+f.size||0), type:String(f.type||'')}));
   if(l.incoming && ['offer','run'].includes(l.incoming.status)){ lsend(l,{t:'reject', id:m.id}); return; }
   const b={ id:m.id, dir:'in', link:l, meta:files, total:files.reduce((s,f)=>s+f.size,0), done:0, status:'offer', saved:[] };
-  b.key='in:'+l.code+':'+b.id; batches.set(b.key,b); l.incoming=b; render(b);
+  b.key='in:'+l.code+':'+b.id; const old=batches.get(b.key); if(old){ if(old.el) old.el.remove(); if(['run','failed','done'].includes(old.status)) b.reaccept=true; }
+  batches.set(b.key,b); l.incoming=b; render(b);
+  if(b.reaccept){ acceptIncoming(b); return; }
   const body = l.name+' mengirim '+files.length+' file ('+fmt(b.total)+')';
   if(NATIVE){ if(!document.hasFocus()) NATIVE.notify('KLM Sender', body); }
   else if(document.hidden && 'Notification' in window && Notification.permission==='granted'){ try{ new Notification('KLM Sender',{body}); }catch(e){} }
@@ -1137,7 +1174,7 @@ window.addEventListener('beforeunload', e => { if(busy()){ e.preventDefault(); e
 /* ---------- daftar transfer ---------- */
 const ICON_OUT='<svg class="i" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>';
 const ICON_IN='<svg class="i" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M16 17H7V8"/></svg>';
-const STATUS={ queue:['Antre',''], wait:['Menunggu diterima',''], offer:['Masuk','run'], run:['Berjalan','run'], done:['Selesai','done'], rejected:['Ditolak','err'], cancelled:['Dibatalkan','err'], failed:['Gagal','err'] };
+const STATUS={ relink:['Menyambung ulang','run'], queue:['Antre',''], wait:['Menunggu diterima',''], offer:['Masuk','run'], run:['Berjalan','run'], done:['Selesai','done'], rejected:['Ditolak','err'], cancelled:['Dibatalkan','err'], failed:['Gagal','err'] };
 const raf=new Set(); let rafId=0;
 function render(b){ raf.add(b); if(!rafId) rafId=requestAnimationFrame(()=>{ rafId=0; raf.forEach(draw); raf.clear(); taskbar(); }); }
 function taskbar(){ if(!NATIVE) return; let tot=0,done=0; batches.forEach(x=>{ if(x.status==='run'){ tot+=x.total; done+=x.done; } }); NATIVE.progress(tot?Math.min(1,done/tot):-1); }
@@ -1173,22 +1210,41 @@ function draw(b){
     '<span class="badge '+cls+'">'+st+'</span></div>'+
     (b.status==='run'||b.status==='done' ? '<div class="bar"><i style="width:'+pct+'%"></i></div>' : '')+
     stats+filesHtml+actions;
-  b.el.querySelectorAll('[data-act]').forEach(btn => btn.onclick = () => {
-    const a=btn.dataset.act, l=b.link;
-    if(a==='accept') acceptIncoming(b);
-    else if(a==='reject') rejectIncoming(b);
-    else if(a==='cancel'){
-      if(b.dir==='out'){
-        b.cancel=true;
-        if(b.status!=='run'){ const qi=l.queue.indexOf(b); if(qi>=0) l.queue.splice(qi,1); if(b.status==='wait') lsend(l,{t:'cancel', id:b.id}); b.status='cancelled'; resolve(l,'ans:'+b.id,'reject'); render(b); }
-        else { if(b.xhr) b.xhr.abort(); resolve(l,'pull:'+b.id+':'+b.curI,'cancel'); }
-      } else { lsend(l,{t:'cancel', id:b.id}); if(l.incoming===b) abortIncoming(l,'Dibatalkan'); }
-    }
-  });
+  b.el.querySelectorAll('[data-act]').forEach(btn => btn.onclick = () => txAct(b, btn.dataset.act));
+  pushTx(b);
   b.el.querySelectorAll('[data-open]').forEach(btn => btn.onclick = () => { const s=b.saved.slice(-50)[+btn.dataset.open]; if(s && NATIVE) NATIVE.openFile(s.path); });
   b.el.querySelectorAll('[data-show]').forEach(btn => btn.onclick = () => { const s=b.saved.slice(-50)[+btn.dataset.show]; if(s && NATIVE) NATIVE.showFile(s.path); });
   b.el.querySelectorAll('[data-dl]').forEach(btn => btn.onclick = () => { const s=b.saved.slice(-50)[+btn.dataset.dl]; if(s) downloadItem(s); });
 }
+function txAct(b, a){
+    const l=b.link;
+    if(a==='accept') acceptIncoming(b);
+    else if(a==='reject') rejectIncoming(b);
+    else if(a==='retry'){ resend(b); }
+    else if(a==='open'){ try{ window.parent.KLMCF.openSender(); }catch(_){} }
+    else if(a==='cancel'){
+      if(b.dir==='out'){
+        b.cancel=true;
+        if(b.status==='relink'){ const e=pending.get(l.code); if(e){ e.batches=e.batches.filter(x=>x!==b); if(!e.batches.length) pending.delete(l.code); } b.status='cancelled'; b.reason='Dibatalkan'; render(b); return; }
+        if(b.status!=='run'){ const qi=l.queue.indexOf(b); if(qi>=0) l.queue.splice(qi,1); if(b.status==='wait') lsend(l,{t:'cancel', id:b.id}); b.status='cancelled'; resolve(l,'ans:'+b.id,'reject'); render(b); }
+        else { if(b.xhr) b.xhr.abort(); resolve(l,'pull:'+b.id+':'+b.curI,'cancel'); }
+      } else { lsend(l,{t:'cancel', id:b.id}); if(l.incoming===b) abortIncoming(l,'Dibatalkan'); }
+    }
+}
+function resend(b){ if(b.dir!=='out' || !b.files) return; const code=b.link.code, nb={ id:uid(), dir:'out', link:b.link, files:b.files, meta:b.meta, total:b.total, done:0, status:'queue', cancel:false };
+  nb.key='out:'+code+':'+nb.id; batches.set(nb.key,nb); if(window.KLMTxDock) KLMTxDock.remove(b.key); try{ window.parent.KLMCF.txRemove(b.key); }catch(_){}
+  const l=links.get(code); if(l){ nb.link=l; render(nb); l.queue.push(nb); runQueue(l); } else { render(nb); park(nb, 'Perangkat belum tersambung.'); } }
+/* data untuk popup proses transfer */
+function pushTx(b){
+  const n=b.meta.length, first=baseName(b.meta[0] ? b.meta[0].name : 'file'), [label]=STATUS[b.status]||[''];
+  const d={ key:b.key, dir:b.dir, title: n===1?first:first+' +'+(n-1)+' file', peer:b.link.name, route:b.link.via==='hub'?'Wi-Fi lokal':(b.link.route||''),
+    status:b.status, label, done:b.done||0, total:b.total||0, speed:b.speed||0, avg:b.avg||0, secs:b.secs||0, reason:b.reason||'', tries:b.tries||0,
+    files:b.meta.map(f=>({name:baseName(f.name), size:f.size})), canOpen: !!window.KLM_EMBED };
+  if(window.KLM_EMBED){ try{ window.parent.KLMCF.tx(d); return; }catch(_){} }
+  if(window.KLMTxDock) KLMTxDock.update(d);
+}
+window.__klmTxAct = (key, a) => { const b=batches.get(key); if(b && a!=='dismiss') txAct(b, a); };
+if(window.KLMTxDock) KLMTxDock.onAction = (key, a) => window.__klmTxAct(key, a);
 
 /* ---------- pilih & seret file ---------- */
 $('pickFiles').onchange = e => { queueFiles(e.target.files); e.target.value=''; };

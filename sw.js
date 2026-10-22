@@ -1,6 +1,6 @@
 // KLM Cetak Foto — service worker (offline)
-const VERSION = 'klm-cetak-v16';
-const CORE = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './sender/index.html', './sender/vendor/qrcode.js'];
+const VERSION = 'klm-cetak-v17';
+const CORE = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './sender/index.html', './sender/vendor/qrcode.js', './txdock.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));

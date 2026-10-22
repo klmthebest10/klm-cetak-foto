@@ -194,6 +194,11 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 .sw input{opacity:0;position:absolute;inset:0;cursor:pointer;width:100%;height:100%}
 .btn.on{background:var(--sun);color:#1E2142}
 .brush-chip{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:4;background:var(--ink);color:var(--surface);border-radius:999px;padding:5px 12px;font-weight:800;font-size:12.5px;pointer-events:none;white-space:nowrap}
+.zoombar{position:absolute;right:calc(10px + env(safe-area-inset-right,0px));bottom:10px;z-index:4;display:flex;background:var(--surface);border:2px solid var(--ink);border-radius:12px;box-shadow:3px 3px 0 var(--shadow);overflow:hidden}
+.zoombar button{border:0;background:transparent;min-width:40px;height:38px;font:800 16px var(--f-body);color:var(--ink);cursor:pointer;padding:0 8px}
+.zoombar button+button{border-left:2px solid var(--line)}
+.zoombar button span{font-size:12.5px;font-variant-numeric:tabular-nums}
+.zoombar button:hover{background:var(--surface2)}
 .busy{position:absolute;inset:0;display:grid;place-items:center;background:rgba(14,16,36,.25);z-index:5}
 .busy div{background:var(--surface);border:2px solid var(--ink);border-radius:999px;padding:8px 16px;font-weight:800;display:flex;gap:10px;align-items:center;box-shadow:3px 3px 0 var(--shadow)}
 .spin{width:18px;height:18px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--coral);animation:sp 0.8s linear infinite}
@@ -207,6 +212,8 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 .ex-bot{border-top:2px solid var(--ink);padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
 .ex-top h2{margin:0;font:700 18px/1 var(--f-disp)}
 .ex-sp{flex:1}
+.ex-hint{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:var(--ink);color:var(--surface);font-weight:800;font-size:12.5px;padding:6px 12px;border-radius:999px;pointer-events:none;white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;transition:opacity .4s}
+.ex-hint.off{opacity:0}
 .ex-seg button[aria-pressed="true"][data-exmode="erase"]{background:#E5484D;color:#fff}
 .ex-seg button[aria-pressed="true"][data-exmode="keep"]{background:var(--mint);color:#fff}
 .ex-bot .fld{flex:1;min-width:150px}
@@ -304,7 +311,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v1.9</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.0</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -536,7 +543,8 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
         <button class="btn sm ghost" data-ed-act="cropCancel">Batal</button>
         <button class="btn sm mint" data-ed-act="cropApply">Terapkan</button>
       </div>
-      <div class="ed-canvas" id="edWrap"><canvas id="edCanvas"></canvas><div class="busy" id="edBusy" hidden><div><span class="spin"></span><span id="edBusyTxt">Memproses…</span></div></div></div>
+      <div class="ed-canvas" id="edWrap"><canvas id="edCanvas"></canvas>
+        <div class="zoombar" id="edZoomBar"><button id="edZout" aria-label="Perkecil">−</button><button id="edZfit" title="Pas layar"><span id="edZtxt">100%</span></button><button id="edZin" aria-label="Perbesar">+</button></div><div class="busy" id="edBusy" hidden><div><span class="spin"></span><span id="edBusyTxt">Memproses…</span></div></div></div>
       <div class="ed-res" id="edRes"></div>
     </div>
     <div class="ed-side">
@@ -592,10 +600,13 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
     <button class="btn sm ghost" id="exCancel">Batal</button>
     <button class="btn sm primary" id="exDone">Selesai</button>
   </div>
-  <div class="ex-wrap" id="exWrap"><canvas id="exCanvas"></canvas><div class="busy" id="exBusy" hidden><div><span class="spin"></span><span>Memproses…</span></div></div></div>
+  <div class="ex-wrap" id="exWrap"><canvas id="exCanvas"></canvas>
+    <div class="zoombar"><button id="exZout2" aria-label="Perkecil">−</button><button id="exFit2" title="Pas layar">Pas</button><button id="exZin2" aria-label="Perbesar">+</button></div>
+    <div class="ex-hint" id="exHint">Zoom: cubit dua jari, scroll, atau slider Perbesar</div><div class="busy" id="exBusy" hidden><div><span class="spin"></span><span>Memproses…</span></div></div></div>
   <div class="ex-bot">
     <label class="fld"><span>Ukuran kuas <b id="exSizeTxt">40</b></span><input type="range" id="exSize" min="4" max="160" value="40"></label>
-    <label class="fld"><span>Kekerasan tepi <b id="exHardTxt">60%</b></span><input type="range" id="exHard" min="0" max="95" value="60"></label>
+    <label class="fld"><span>Perbesar <b id="exZoomTxt2">100%</b></span><input type="range" id="exZoom" min="100" max="1200" step="10" value="100"></label>
+    <label class="fld"><span>Kekerasan <b id="exHardTxt">60%</b></span><input type="range" id="exHard" min="0" max="95" value="60"></label>
     <div class="ex-tools">
       <button class="btn sm icon" id="exZout" aria-label="Perkecil">−</button>
       <button class="btn sm" id="exFit" title="Pas layar"><span id="exZoomTxt">100%</span></button>
@@ -874,7 +885,7 @@ async function openEraser(){
   X.orig=cv(W,H);const ox=X.orig.getContext('2d');ox.imageSmoothingQuality='high';ox.drawImage(geo(p),0,0,W,H);
   X.final=cv(W,H);const fx=X.final.getContext('2d');fx.imageSmoothingQuality='high';fx.drawImage(p.out,0,0,W,H);
   X.buf=cv(W,H);X.M=cv(W,H);X.T=cv(W,H);X.strokes=old.slice();X.redo=[];X.cur=null;
-  exRebuild();$('#eraser').showModal();X.z=1;X.tx=0;X.ty=0;exMode(X.mode);requestAnimationFrame(exDraw)}
+  exRebuild();$('#eraser').showModal();const hn=$('#exHint');hn.classList.remove('off');clearTimeout(X.hintT);X.hintT=setTimeout(()=>hn.classList.add('off'),4500);X.z=1;X.tx=0;X.ty=0;exMode(X.mode);requestAnimationFrame(exDraw)}
 function exRebuild(){const b=X.buf.getContext('2d');b.globalCompositeOperation='source-over';b.drawImage(X.final,0,0);for(const st of X.strokes)exPaint(st,0)}
 function exPaint(st,i0){
   const W=X.buf.width,H=X.buf.height,big=Math.max(W,H),r=st.r*big+2;
@@ -896,7 +907,7 @@ function exDraw(){if(!$('#eraser').open||!X.buf)return;const c=$('#exCanvas'),wr
   x.strokeStyle='rgba(30,33,66,.5)';x.lineWidth=1;x.strokeRect(v.ox-.5,v.oy-.5,W*v.s+1,H*v.s+1);
   if(X.hover&&!X.pinch){const r=exSize()/2;x.save();x.beginPath();x.arc(X.hover[0],X.hover[1],r,0,7);x.lineWidth=2.5;x.strokeStyle='#fff';x.stroke();x.lineWidth=1.2;x.strokeStyle=X.mode==='erase'?'#E5484D':'#1FB59C';x.stroke();
     if(exHard()<0.9){x.setLineDash([3,3]);x.beginPath();x.arc(X.hover[0],X.hover[1],r*exHard(),0,7);x.stroke()}x.restore()}
-  $('#exZoomTxt').textContent=Math.round(X.z*100)+'%';$('#exUndo').disabled=X.strokes.length<=0;$('#exRedo').disabled=!X.redo.length}
+  $('#exZoomTxt').textContent=Math.round(X.z*100)+'%';$('#exZoomTxt2').textContent=Math.round(X.z*100)+'%';if(document.activeElement!==$('#exZoom'))$('#exZoom').value=Math.round(X.z*100);$('#exUndo').disabled=X.strokes.length<=0;$('#exRedo').disabled=!X.redo.length}
 function exMode(m){X.mode=m;$$('[data-exmode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.exmode===m));exDraw()}
 function exPt(e){const r=$('#exCanvas').getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
 function exUV(px,py){const v=exView();return[(px-v.ox)/(v.s*X.buf.width),(py-v.oy)/(v.s*X.buf.height)]}
@@ -908,7 +919,7 @@ function exEnd(commit){const p=X.p;if(!p||!X.buf)return;X.buf=null;$('#eraser').
   X.orig=X.final=X.M=X.T=null}
 function bindEraser(){
   const c=$('#exCanvas');
-  c.addEventListener('pointerdown',e=>{e.preventDefault();c.setPointerCapture(e.pointerId);const pt=exPt(e);X.ptrs.set(e.pointerId,pt);X.hover=e.pointerType==='mouse'?pt:null;
+  c.addEventListener('pointerdown',e=>{e.preventDefault();try{c.setPointerCapture(e.pointerId)}catch(_){};const pt=exPt(e);X.ptrs.set(e.pointerId,pt);X.hover=e.pointerType==='mouse'?pt:null;
     if(X.ptrs.size===2){ // dua jari: batalkan goresan, mulai cubit-zoom / geser
       if(X.cur){X.cur=null;exRebuild()}const[a,b]=[...X.ptrs.values()];X.pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1]),m:[(a[0]+b[0])/2,(a[1]+b[1])/2]};exDraw();return}
     if(X.ptrs.size>2)return;
@@ -935,6 +946,10 @@ function bindEraser(){
   $('#exZin').addEventListener('click',()=>{const v=exView();exZoomAt(1.4,v.cw/2,v.ch/2)});
   $('#exZout').addEventListener('click',()=>{const v=exView();exZoomAt(1/1.4,v.cw/2,v.ch/2)});
   $('#exFit').addEventListener('click',()=>{X.z=1;X.tx=0;X.ty=0;exDraw()});
+  $('#exZin2').addEventListener('click',()=>$('#exZin').click());$('#exZout2').addEventListener('click',()=>$('#exZout').click());$('#exFit2').addEventListener('click',()=>$('#exFit').click());
+  $('#exZoom').addEventListener('input',e=>{const v=exView(),z=num(e.target.value)/100;exZoomAt(z/X.z,X.hover?X.hover[0]:v.cw/2,X.hover?X.hover[1]:v.ch/2)});
+  c.addEventListener('dblclick',e=>{const pt=exPt(e);if(X.strokes.length>=2){const a=X.strokes[X.strokes.length-1],b=X.strokes[X.strokes.length-2];if(a.pts.length<=2&&b.pts.length<=2){X.strokes.splice(-2);exRebuild()}}
+    if(X.z>1.5){X.z=1;X.tx=X.ty=0;exDraw()}else exZoomAt(3,pt[0],pt[1])});
   $('#exPan').addEventListener('click',e=>{X.pan=!X.pan;e.currentTarget.setAttribute('aria-pressed',X.pan);$('#exCanvas').style.cursor=X.pan?'grab':'none'});
   const pk=$('#exPeek'),on=e=>{e.preventDefault();X.peek=true;exDraw()},off=()=>{if(X.peek){X.peek=false;exDraw()}};
   pk.addEventListener('pointerdown',on);pk.addEventListener('pointerup',off);pk.addEventListener('pointerleave',off);pk.addEventListener('pointercancel',off);
@@ -1361,7 +1376,9 @@ function removePhoto(id){photos.delete(id);DB.del(id);S.pas.jobs.forEach(j=>{if(
 
 /* ============ EDITOR ============ */
 const E={p:null,mode:'view',quad:null,drag:-1,fit:null,cmp:false,t:0};
-function openEditor(id,o={}){const p=photos.get(id);if(!p)return;E.p=p;$('#edTitle').textContent=p.name;fillEditor();
+function edZoomAt(f,px,py){const wrap=$('#edWrap'),cx=wrap.clientWidth/2,cy=wrap.clientHeight/2,z0=E.z||1,nz=Math.min(10,Math.max(1,z0*f)),k=nz/z0;
+  E.tx=(px-cx)-(px-cx-(E.tx||0))*k;E.ty=(py-cy)-(py-cy-(E.ty||0))*k;E.z=nz;if(nz===1){E.tx=E.ty=0}drawEditor()}
+function openEditor(id,o={}){const p=photos.get(id);if(!p)return;E.p=p;E.z=1;E.tx=E.ty=0;$('#edTitle').textContent=p.name;fillEditor();
   if(!$('#editor').open)$('#editor').showModal();setEdMode(o.crop?'crop':'view',o.aspect);requestAnimationFrame(drawEditor)}
 function fillEditor(){const p=E.p;
   $$('[data-ed]').forEach(el=>{const v=getP(p,el.dataset.ed);if(el.type==='checkbox')el.checked=!!v;else el.value=v});
@@ -1381,7 +1398,8 @@ function drawEditor(){
   const p=E.p;if(!p||!$('#editor').open)return;const wrap=$('#edWrap'),c=$('#edCanvas'),dpr=Math.min(2,devicePixelRatio||1);
   const cw=wrap.clientWidth,ch=wrap.clientHeight;c.width=cw*dpr;c.height=ch*dpr;const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,cw,ch);
   const src=E.mode==='crop'?rotated(p):(E.cmp?geo(p):(p.out||geo(p)));const pad=E.mode==='crop'?26:14;
-  const s=Math.min((cw-2*pad)/src.width,(ch-2*pad)/src.height),ox=(cw-src.width*s)/2,oy=(ch-src.height*s)/2;E.fit={ox,oy,s,w:src.width,h:src.height};
+  const zm=E.mode==='crop'?1:(E.z||1),fit=Math.min((cw-2*pad)/src.width,(ch-2*pad)/src.height),s=fit*zm,ox=(cw-src.width*s)/2+(zm>1?E.tx:0),oy=(ch-src.height*s)/2+(zm>1?E.ty:0);E.fit={ox,oy,s,w:src.width,h:src.height};
+  x.imageSmoothingEnabled=zm<3;$('#edZoomBar').hidden=E.mode==='crop';$('#edZtxt').textContent=Math.round(zm*100)+'%';
   x.imageSmoothingQuality='high';x.drawImage(src,ox,oy,src.width*s,src.height*s);
   if(E.cmp){x.fillStyle='rgba(30,33,66,.8)';x.fillRect(10,10,64,24);x.fillStyle='#fff';x.font='800 12px Nunito,sans-serif';x.fillText('ASLI',24,27)}
   if(E.mode==='crop'){const P=E.quad.map(([u,v])=>[ox+u*src.width*s,oy+v*src.height*s]);
@@ -1398,7 +1416,7 @@ function bindEditor(){
   const c=$('#edCanvas');
   c.addEventListener('pointerdown',e=>{if(E.mode!=='crop')return;const[mx,my]=edPt(e),f=E.fit;let best=-1,bd=1e9;
     E.quad.forEach(([u,v],i)=>{const d=Math.hypot(f.ox+u*f.w*f.s-mx,f.oy+v*f.h*f.s-my);if(d<bd){bd=d;best=i}});
-    if(bd<48){E.drag=best;c.setPointerCapture(e.pointerId);drawEditor()}});
+    if(bd<48){E.drag=best;try{c.setPointerCapture(e.pointerId)}catch(_){};drawEditor()}});
   c.addEventListener('pointermove',e=>{if(E.drag<0)return;const[mx,my]=edPt(e),f=E.fit;E.quad[E.drag]=[Math.min(1,Math.max(0,(mx-f.ox)/(f.w*f.s))),Math.min(1,Math.max(0,(my-f.oy)/(f.h*f.s)))];drawEditor()});
   const up=()=>{if(E.drag>=0){E.drag=-1;drawEditor()}};c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
   const cmp=$('#cmpBtn');const on=e=>{e.preventDefault();E.cmp=true;drawEditor()},off=()=>{if(E.cmp){E.cmp=false;drawEditor()}};
@@ -1424,7 +1442,21 @@ function bindEditor(){
   $('#edDone').addEventListener('click',()=>{$('#editor').close()});
   $('#edReset').addEventListener('click',()=>{const p=E.p;p.rot=0;p.flip=false;p.flipV=false;p.tilt=0;p.warp=null;p.framing={};p.adj={bright:0,contrast:0,sat:0,warm:0,sharp:0,denoise:0,smooth:0,upscale:'1',auto:false,filter:'none'};p.bg.on=false;p.bg.strokes=[];p.bg.sv=(p.bg.sv||0)+1;fillEditor();setEdMode('view');reprocess(true)});
   $('#editor').addEventListener('close',()=>{E.mode='view';renderLib();renderPanels();draw()});
-  new ResizeObserver(()=>drawEditor()).observe($('#edWrap'))}
+  new ResizeObserver(()=>drawEditor()).observe($('#edWrap'));
+  // zoom & geser di tampilan edit: scroll / cubit dua jari / tombol; seret untuk menggeser saat diperbesar
+  const zp=new Map();let zpinch=null,zdrag=null;
+  c.addEventListener('wheel',e=>{if(E.mode!=='view')return;e.preventDefault();const[px,py]=edPt(e);edZoomAt(e.deltaY<0?1.15:1/1.15,px,py)},{passive:false});
+  c.addEventListener('pointerdown',e=>{if(E.mode!=='view')return;try{c.setPointerCapture(e.pointerId)}catch(_){};const pt=edPt(e);zp.set(e.pointerId,pt);
+    if(zp.size===2){const[a,b]=[...zp.values()];zpinch={d:Math.hypot(a[0]-b[0],a[1]-b[1]),m:[(a[0]+b[0])/2,(a[1]+b[1])/2]};zdrag=null}
+    else if(zp.size===1&&(E.z||1)>1){zdrag={pt,tx:E.tx,ty:E.ty};c.style.cursor='grabbing'}});
+  c.addEventListener('pointermove',e=>{if(E.mode!=='view'||!zp.has(e.pointerId))return;const pt=edPt(e);zp.set(e.pointerId,pt);
+    if(zpinch&&zp.size>=2){const[a,b]=[...zp.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];E.tx=(E.tx||0)+m[0]-zpinch.m[0];E.ty=(E.ty||0)+m[1]-zpinch.m[1];edZoomAt(d/Math.max(1,zpinch.d),m[0],m[1]);zpinch={d,m};return}
+    if(zdrag){E.tx=zdrag.tx+pt[0]-zdrag.pt[0];E.ty=zdrag.ty+pt[1]-zdrag.pt[1];drawEditor()}});
+  const zup=e=>{zp.delete(e.pointerId);if(zp.size<2)zpinch=null;if(!zp.size){zdrag=null;c.style.cursor=(E.z||1)>1?'grab':''}};c.addEventListener('pointerup',zup);c.addEventListener('pointercancel',zup);
+  c.addEventListener('dblclick',e=>{if(E.mode!=='view')return;const[px,py]=edPt(e);if((E.z||1)>1){E.z=1;E.tx=E.ty=0;drawEditor()}else edZoomAt(2.5,px,py)});
+  $('#edZin').addEventListener('click',()=>{const w=$('#edWrap');edZoomAt(1.4,w.clientWidth/2,w.clientHeight/2)});
+  $('#edZout').addEventListener('click',()=>{const w=$('#edWrap');edZoomAt(1/1.4,w.clientWidth/2,w.clientHeight/2)});
+  $('#edZfit').addEventListener('click',()=>{E.z=1;E.tx=E.ty=0;drawEditor()})}
 
 /* ============ ATUR POSISI (FRAMER) ============ */
 const F={p:null,it:null,fr:null,drag:null};
@@ -1443,7 +1475,7 @@ function drawFramer(){const c=$('#frCanvas'),[w,h]=frSize(),dpr=Math.min(2,devic
   $('#frZoomTxt').textContent=fmt(F.fr.zoom,2)+'×'}
 function saveFraming(){F.p.framing[aspectKey(F.it.w,F.it.h)]={...F.fr};persist(F.p);draw()}
 function bindFramer(){const c=$('#frCanvas');
-  c.addEventListener('pointerdown',e=>{F.drag=[e.clientX,e.clientY];c.setPointerCapture(e.pointerId);c.style.cursor='grabbing'});
+  c.addEventListener('pointerdown',e=>{F.drag=[e.clientX,e.clientY];try{c.setPointerCapture(e.pointerId)}catch(_){};c.style.cursor='grabbing'});
   c.addEventListener('pointermove',e=>{if(!F.drag)return;const dx=e.clientX-F.drag[0],dy=e.clientY-F.drag[1];F.drag=[e.clientX,e.clientY];
     const[w,h]=frSize(),fp=fitParams(F.p.out,w,h,{fit:F.it.fit,autorot:F.it.autorot,zoom:F.fr.zoom,rot:F.fr.rot});
     if(fp.rot){F.fr.cx+=dy/(fp.iw*fp.s);F.fr.cy-=dx/(fp.ih*fp.s)}else{F.fr.cx-=dx/(fp.iw*fp.s);F.fr.cy-=dy/(fp.ih*fp.s)}drawFramer();saveFraming()});

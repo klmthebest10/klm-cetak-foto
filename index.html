@@ -311,7 +311,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.0</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.1</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -770,12 +770,35 @@ function solve8(A,b){const n=8;for(let i=0;i<n;i++)A[i]=A[i].concat([b[i]]);
 function homography(src,dst){const A=[],b=[];
   for(let i=0;i<4;i++){const[x,y]=src[i],[u,v]=dst[i];A.push([x,y,1,0,0,0,-u*x,-u*y]);b.push(u);A.push([0,0,0,x,y,1,-v*x,-v*y]);b.push(v)}
   return solve8(A,b).concat([1])}
-function warpQuad(src,q,aspect){
-  const sw=src.width,sh=src.height,P=q.map(([x,y])=>[x*sw,y*sh]),dst=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+function warpInfo(sw,sh,q,aspect){
+  const P=q.map(([x,y])=>[x*sw,y*sh]),dst=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
   let W=(dst(P[0],P[1])+dst(P[3],P[2]))/2,H=(dst(P[0],P[3])+dst(P[1],P[2]))/2;
   const r=ASPECTS[aspect];
   if(r){const cur=W/H;const want=Math.abs(Math.log(cur/r))<Math.abs(Math.log(cur*r))?r:1/r;const area=W*H;W=Math.sqrt(area*want);H=W/want}
-  const k=Math.min(1,3000/Math.max(W,H));W=Math.max(8,Math.round(W*k));H=Math.max(8,Math.round(H*k));
+  const k=Math.min(1,3000/Math.max(W,H));W=Math.max(8,Math.round(W*k));H=Math.max(8,Math.round(H*k));return{P,W,H}}
+/* Pemetaan titik antara foto asli dan foto setelah putar/cermin/miring/luruskan.
+   Coretan kuas disimpan di koordinat foto asli, jadi selalu ikut saat foto diputar atau dimiringkan. */
+function geoMap(p){
+  const o=p.orig,ow=o.width,oh=o.height,sw=p.rot%180!==0,cw=sw?oh:ow,ch=sw?ow:oh;
+  const tl=num(p.tilt),t=tl*Math.PI/180,at=Math.abs(t),k=tl?Math.cos(at)+Math.sin(at)*Math.max(cw/ch,ch/cw):1;
+  const r=p.rot*Math.PI/180,fx=p.flip?-1:1,fy=p.flipV?-1:1,ct=Math.cos(t),st=Math.sin(t),cr=Math.cos(r),sr=Math.sin(r);
+  const fR=([X,Y])=>{let x=(X-ow/2)*k,y=(Y-oh/2)*k;[x,y]=[x*ct-y*st,x*st+y*ct];[x,y]=[x*cr-y*sr,x*sr+y*cr];return[fx*x+cw/2,fy*y+ch/2]};
+  const iR=([x,y])=>{x=(x-cw/2)*fx;y=(y-ch/2)*fy;[x,y]=[x*cr+y*sr,-x*sr+y*cr];[x,y]=[x*ct+y*st,-x*st+y*ct];return[x/k+ow/2,y/k+oh/2]};
+  let gw=cw,gh=ch,fwd=fR,inv=iR;
+  if(p.warp){const wi=warpInfo(cw,ch,p.warp,p.warpAspect),rect=[[0,0],[wi.W,0],[wi.W,wi.H],[0,wi.H]],Hf=homography(wi.P,rect),Hi=homography(rect,wi.P);
+    const ap=(M,[x,y])=>{const z=M[6]*x+M[7]*y+1;return[(M[0]*x+M[1]*y+M[2])/z,(M[3]*x+M[4]*y+M[5])/z]};
+    gw=wi.W;gh=wi.H;fwd=q=>ap(Hf,fR(q));inv=q=>iR(ap(Hi,q))}
+  return{ow,oh,gw,gh,fwd,inv}}
+function strokeToGeo(p,st,G){if(st.sp!=='o')return st;G=G||geoMap(p);
+  const P=st.pts.map(([u,v])=>{const[x,y]=G.fwd([u*G.ow,v*G.oh]);return[x/G.gw,y/G.gh]});
+  const q0=[st.pts[0][0]*G.ow,st.pts[0][1]*G.oh],a=G.fwd(q0),b=G.fwd([q0[0]+1,q0[1]]),sc=Math.hypot(b[0]-a[0],b[1]-a[1])||1;
+  return{m:st.m,h:st.h,r:st.r*Math.max(G.ow,G.oh)*sc/Math.max(G.gw,G.gh),pts:P}}
+function strokeToOrig(p,st,G){if(st.sp==='o')return st;G=G||geoMap(p);
+  const P=st.pts.map(([u,v])=>{const[x,y]=G.inv([u*G.gw,v*G.gh]);return[+(x/G.ow).toFixed(5),+(y/G.oh).toFixed(5)]});
+  const q0=[st.pts[0][0]*G.gw,st.pts[0][1]*G.gh],a=G.inv(q0),b=G.inv([q0[0]+1,q0[1]]),sc=Math.hypot(b[0]-a[0],b[1]-a[1])||1;
+  return{sp:'o',m:st.m,h:st.h,r:+(st.r*Math.max(G.gw,G.gh)*sc/Math.max(G.ow,G.oh)).toFixed(6),pts:P}}
+function warpQuad(src,q,aspect){
+  const sw=src.width,sh=src.height,{P,W,H}=warpInfo(sw,sh,q,aspect);
   const M=homography([[0,0],[W,0],[W,H],[0,H]],P);
   const sd=ctx2(src).getImageData(0,0,sw,sh).data,out=cv(W,H),ox=out.getContext('2d'),id=ox.createImageData(W,H),o=id.data;
   for(let v=0;v<H;v++){for(let u=0;u<W;u++){
@@ -884,7 +907,7 @@ async function openEraser(){
   X.p=p;X.old=old;const W=p._mask.a.width,H=p._mask.a.height;
   X.orig=cv(W,H);const ox=X.orig.getContext('2d');ox.imageSmoothingQuality='high';ox.drawImage(geo(p),0,0,W,H);
   X.final=cv(W,H);const fx=X.final.getContext('2d');fx.imageSmoothingQuality='high';fx.drawImage(p.out,0,0,W,H);
-  X.buf=cv(W,H);X.M=cv(W,H);X.T=cv(W,H);X.strokes=old.slice();X.redo=[];X.cur=null;
+  X.buf=cv(W,H);X.M=cv(W,H);X.T=cv(W,H);{const G=geoMap(p);X.strokes=old.map(st=>strokeToGeo(p,st,G))}X.redo=[];X.cur=null;
   exRebuild();$('#eraser').showModal();const hn=$('#exHint');hn.classList.remove('off');clearTimeout(X.hintT);X.hintT=setTimeout(()=>hn.classList.add('off'),4500);X.z=1;X.tx=0;X.ty=0;exMode(X.mode);requestAnimationFrame(exDraw)}
 function exRebuild(){const b=X.buf.getContext('2d');b.globalCompositeOperation='source-over';b.drawImage(X.final,0,0);for(const st of X.strokes)exPaint(st,0)}
 function exPaint(st,i0){
@@ -915,7 +938,7 @@ function exZoomAt(f,px,py){const v=exView(),nz=Math.min(12,Math.max(1,X.z*f));co
   // jaga titik di bawah jari tetap di tempat
   const cx=v.cw/2,cy=v.ch/2;X.tx=(px-cx)-(px-cx-X.tx)*k;X.ty=(py-cy)-(py-cy-X.ty)*k;X.z=nz;if(X.z===1){X.tx=0;X.ty=0}exDraw()}
 function exEnd(commit){const p=X.p;if(!p||!X.buf)return;X.buf=null;$('#eraser').close();
-  p.bg.strokes=commit?X.strokes:X.old;p.bg.sv=(p.bg.sv||0)+1;p.bg.on=true;fillEditor();reprocess(true);if(commit)toast('Perapian diterapkan');
+  {const G=geoMap(p);p.bg.strokes=commit?X.strokes.map(st=>strokeToOrig(p,st,G)):X.old}p.bg.sv=(p.bg.sv||0)+1;p.bg.on=true;fillEditor();reprocess(true);if(commit)toast('Perapian diterapkan');
   X.orig=X.final=X.M=X.T=null}
 function bindEraser(){
   const c=$('#exCanvas');
@@ -1012,9 +1035,10 @@ function refineMatte(g,coarse,sw,sh,bg,soft){
 async function getMatte(p){
   const g=geo(p),b=p.bg,key=p._geoKey+'|'+b.method+'|'+b.tol+'|'+b.feather+'|'+b.hair+'|'+(b.sv||0)+'|'+(b.strokes?b.strokes.length:0);
   if(p._mask&&p._maskKey===key)return p._mask;
-  const ck=p._geoKey+'|'+b.method+'|'+(b.method==='flood'?b.tol:'');
+  // masker kasar dihitung SEKALI pada foto asli (sebelum putar/miring), lalu ikut ditransformasi → AI tidak diulang saat foto dimiringkan
+  const ck=b.method+'|'+(b.method==='flood'?b.tol:'');
   let co=p._coarse&&p._coarseKey===ck?p._coarse:null;
-  if(!co){const sc=Math.min(1,1024/Math.max(g.width,g.height)),s=cv(g.width*sc,g.height*sc);s.getContext('2d').drawImage(g,0,0,s.width,s.height);
+  if(!co){const o=p.orig,sc=Math.min(1,1024/Math.max(o.width,o.height)),s=cv(o.width*sc,o.height*sc);s.getContext('2d').drawImage(o,0,0,s.width,s.height);
     let a=null,soft=false;
     if(b.method==='ai'){
       try{a=await modnetAlpha(s);soft=true}catch(e){console.warn('MODNet',e);
@@ -1023,7 +1047,11 @@ async function getMatte(p){
     if(!a)a=floodAlpha(s,b.tol);
     co={a,w:s.width,h:s.height,soft};if(soft||b.method!=='ai'){p._coarse=co;p._coarseKey=ck}}
   setBusyText('Merapikan tepi & rambut…');await tick();
-  const m=refineMatte(g,co.a,co.w,co.h,b,co.soft);p._mask=m;p._maskKey=key;return m}
+  const G=geoMap(p),bs={...b,strokes:(b.strokes||[]).map(st=>strokeToGeo(p,st,G))};
+  if(!co.cv){const c=cv(co.w,co.h),x=c.getContext('2d'),id=x.createImageData(co.w,co.h);for(let j=0;j<co.a.length;j++){const v=co.a[j];id.data[j*4]=id.data[j*4+1]=id.data[j*4+2]=v;id.data[j*4+3]=255}x.putImageData(id,0,0);co.cv=c}
+  const tg=geo({orig:co.cv,rot:p.rot,flip:p.flip,flipV:p.flipV,tilt:p.tilt,warp:p.warp,warpAspect:p.warpAspect});
+  const td=ctx2(tg).getImageData(0,0,tg.width,tg.height).data,ta=new Uint8ClampedArray(tg.width*tg.height);for(let j=0;j<ta.length;j++)ta[j]=td[j*4];
+  const m=refineMatte(g,ta,tg.width,tg.height,bs,co.soft);p._mask=m;p._maskKey=key;return m}
 function scaledData(c,w,h){const t=cv(w,h),x=ctx2(t);x.imageSmoothingQuality='high';x.drawImage(c,0,0,w,h);return x.getImageData(0,0,w,h).data}
 
 /* --- foto & pipeline --- */
@@ -1429,7 +1457,7 @@ function bindEditor(){
     const f=e.target.closest('[data-filter]');if(f){p.adj.filter=f.dataset.filter;fillEditor();reprocess(true);return}
     const bc=e.target.closest('[data-bgc]');if(bc){p.bg.color=bc.dataset.bgc;p.bg.on=true;fillEditor();reprocess(true);return}
     const a=e.target.closest('[data-ed-act]');if(!a)return;const act=a.dataset.edAct;
-    if(act==='rotL'||act==='rotR'){p.rot=(p.rot+(act==='rotL'?270:90))%360;p.warp=null;p.framing={};if(p.bg.strokes&&p.bg.strokes.length){p.bg.strokes=[];p.bg.sv++}reprocess(true)}
+    if(act==='rotL'||act==='rotR'){p.rot=(p.rot+(act==='rotL'?270:90))%360;p.warp=null;p.framing={};reprocess(true)}
     else if(act==='flip'){p.flip=!p.flip;p.warp=null;reprocess(true)}
     else if(act==='eraser'){openEraser()}
     else if(act==='flipV'){p.flipV=!p.flipV;p.warp=null;reprocess(true)}

@@ -247,8 +247,38 @@ button:focus-visible,input:focus-visible,.btn:focus-within{outline:3px solid #5B
 .dev.off .tick{visibility:hidden}
 .relink-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--coral);margin-right:5px;vertical-align:middle;animation:pulse 1.2s infinite}
 .cf-note{display:flex;gap:10px;align-items:center;background:var(--mint-soft);border:2px solid var(--mint);border-radius:14px;padding:10px 14px;font-size:13px;font-weight:700;color:var(--ink)}
-html.embed #installBtn,html.embed #iosHint{display:none!important}
+html.embed #installBtn,html.embed #iosHint,html.embed header .brand{display:none!important}
+html.embed header{justify-content:flex-end;padding:6px 8px}
 html.embed .wrap{max-width:720px}
+/* ===== Tata letak responsif: HP 1 kolom · tablet/PC 2 kolom · layar lebar 3 kolom ===== */
+.cols{display:flex;flex-direction:column;gap:18px}
+.col{display:contents}
+.o1{order:1}.o2{order:2}.o3{order:3}.o4{order:4}.o5{order:5}.o6{order:6}.o7{order:7}
+.txcard .devhead{gap:8px}
+.txcard .list{gap:12px}
+.txcard .tx{box-shadow:none;border:2px solid var(--line);background:var(--surface2)}
+@media (min-width:880px){
+  .wrap,html.embed .wrap{max-width:1180px}
+  .cols{display:grid;grid-template-columns:minmax(320px,380px) minmax(0,1fr);grid-template-areas:"a b" "a c";grid-template-rows:auto 1fr;gap:20px;align-items:start}
+  .col-a .code{font-size:clamp(28px,2.4vw,36px)}
+  .col-a .me{grid-template-columns:minmax(0,1fr) auto}
+  .col-a .qr{width:112px;height:112px}
+  .col{display:flex;flex-direction:column;gap:18px;min-width:0}
+  .col-a{grid-area:a;position:sticky;top:12px}
+  .col-b{grid-area:b}.col-c{grid-area:c}
+  .devs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+  .drop{padding:34px 22px;min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .txcard .list{max-height:none}
+}
+@media (min-width:1360px){
+  .wrap,html.embed .wrap{max-width:1560px}
+  .cols{grid-template-columns:minmax(320px,370px) minmax(0,1fr) minmax(0,1fr);grid-template-areas:"a b c";grid-template-rows:auto}
+  .col-c{position:sticky;top:12px;max-height:calc(100vh - 24px);display:flex}
+  .col-c .txcard{flex:1;min-height:0;display:flex;flex-direction:column}
+  .col-c .txcard .list{flex:1;min-height:0;overflow:auto;padding:2px 4px 4px 0}
+}
+@media (min-width:880px){ html.embed body{padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px))} }
+
 </style>
 </head>
 <body>
@@ -266,7 +296,9 @@ html.embed .wrap{max-width:720px}
   </header>
   <div class="glass note" id="iosHint" hidden style="padding:12px 16px;border-radius:18px">Pasang di iPhone: ketuk tombol <b>Bagikan</b> di Safari, lalu pilih <b>Tambahkan ke Layar Utama</b>.</div>
 
-  <section class="glass hero" aria-labelledby="meLbl">
+  <div class="cols">
+    <div class="col col-a">
+  <section class="glass hero o1" aria-labelledby="meLbl">
     <div class="me">
       <div style="min-width:0">
         <p class="label" id="meLbl">Kode perangkat ini</p>
@@ -283,17 +315,7 @@ html.embed .wrap{max-width:720px}
     </div>
     <p class="hint" id="lanHint" hidden></p>
   </section>
-
-  <section class="card" aria-labelledby="devLbl">
-    <div class="devhead"><p class="label" id="devLbl">Perangkat terhubung</p><span class="count" id="devCount">0</span></div>
-    <div class="devs" id="devList"></div>
-    <div class="selbar" id="selBar" hidden>
-      <button class="small ghost" id="selNone">Kosongkan pilihan</button>
-      <button class="small" id="selAll">Pilih semua</button>
-    </div>
-  </section>
-
-  <section class="card" aria-labelledby="linkLbl">
+  <section class="card o3" aria-labelledby="linkLbl">
     <p class="label" id="linkLbl">Tambah perangkat</p>
     <form class="connect" id="connectForm" autocomplete="off">
       <input id="peerCode" inputmode="text" maxlength="7" placeholder="ABC-123" aria-label="Kode perangkat tujuan" spellcheck="false">
@@ -307,24 +329,7 @@ html.embed .wrap{max-width:720px}
       <div class="row" id="recentList"></div>
     </div>
   </section>
-
-  <section class="drop off" id="drop" aria-labelledby="dropLbl">
-    <div class="big"><svg class="i" viewBox="0 0 24 24" style="width:24px;height:24px"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg></div>
-    <h2 id="dropLbl">Kirim file</h2>
-    <p id="dropHint">Hubungkan perangkat dulu.</p>
-    <div class="row">
-      <label class="btn primary" id="pickFilesLbl"><input type="file" id="pickFiles" multiple hidden>Pilih file</label>
-      <label class="btn" id="pickDirLbl"><input type="file" id="pickDir" webkitdirectory multiple hidden>Pilih folder</label>
-    </div>
-  </section>
-
-  <div class="cf-note" id="cfNote" hidden><svg class="i" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Foto dan PDF yang diterima langsung masuk ke daftar Foto di KLM Cetak Foto.</div>
-  <section aria-labelledby="txLbl">
-    <p class="label" id="txLbl" style="margin-left:6px">Transfer</p>
-    <div class="list" id="list"><div class="empty-list" id="emptyList">Belum ada transfer. File yang dikirim dan diterima muncul di sini.</div></div>
-  </section>
-
-  <section class="card settings" aria-labelledby="setLbl">
+  <section class="card settings o6" aria-labelledby="setLbl">
     <p class="label" id="setLbl" style="margin:0">Pengaturan</p>
     <div class="row">
       <div class="note" id="saveInfo" style="min-width:0;overflow-wrap:anywhere">File diterima disimpan ke folder Unduhan.</div>
@@ -343,8 +348,35 @@ html.embed .wrap{max-width:720px}
       <button class="small" id="pwdBtn">Atur password</button>
     </div>
   </section>
-
-  <p class="note" style="padding:0 6px">File dikirim <b>ukuran asli tanpa kompres</b>. Di Wi-Fi yang sama lewat aplikasi PC, file mengalir langsung lewat jaringan lokal dan <b>tidak butuh internet</b>. Jarak jauh memakai koneksi langsung antar perangkat (peer-to-peer, terenkripsi).</p>
+  <p class="note o7" style="padding:0 6px">File dikirim <b>ukuran asli tanpa kompres</b>. Di Wi-Fi yang sama lewat aplikasi PC, file mengalir langsung lewat jaringan lokal dan <b>tidak butuh internet</b>. Jarak jauh memakai koneksi langsung antar perangkat (peer-to-peer, terenkripsi).</p>
+    </div>
+    <div class="col col-b">
+  <section class="card o2" aria-labelledby="devLbl">
+    <div class="devhead"><p class="label" id="devLbl">Perangkat terhubung</p><span class="count" id="devCount">0</span></div>
+    <div class="devs" id="devList"></div>
+    <div class="selbar" id="selBar" hidden>
+      <button class="small ghost" id="selNone">Kosongkan pilihan</button>
+      <button class="small" id="selAll">Pilih semua</button>
+    </div>
+  </section>
+  <section class="drop off o4" id="drop" aria-labelledby="dropLbl">
+    <div class="big"><svg class="i" viewBox="0 0 24 24" style="width:24px;height:24px"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg></div>
+    <h2 id="dropLbl">Kirim file</h2>
+    <p id="dropHint">Hubungkan perangkat dulu.</p>
+    <div class="row">
+      <label class="btn primary" id="pickFilesLbl"><input type="file" id="pickFiles" multiple hidden>Pilih file</label>
+      <label class="btn" id="pickDirLbl"><input type="file" id="pickDir" webkitdirectory multiple hidden>Pilih folder</label>
+    </div>
+  </section>
+  <div class="cf-note o4" id="cfNote" hidden><svg class="i" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Foto dan PDF yang diterima langsung masuk ke daftar Foto di KLM Cetak Foto.</div>
+    </div>
+    <div class="col col-c">
+  <section class="card txcard o5" aria-labelledby="txLbl">
+    <div class="devhead"><p class="label" id="txLbl">Transfer</p><span class="count" id="txCount">0</span><span style="flex:1"></span><button class="small ghost" id="txClear" hidden>Bersihkan yang selesai</button></div>
+    <div class="list" id="list"><div class="empty-list" id="emptyList">Belum ada transfer. File yang dikirim dan diterima muncul di sini.</div></div>
+  </section>
+    </div>
+  </div>
 </div>
 
 <div class="overlay" id="scanner" hidden>
@@ -1218,8 +1250,10 @@ const STATUS={ relink:['Menunggu perangkat','run'], queue:['Antre',''], wait:['M
 const raf=new Set(); let rafId=0;
 function render(b){ raf.add(b); if(!rafId) rafId=requestAnimationFrame(()=>{ rafId=0; raf.forEach(draw); raf.clear(); taskbar(); }); }
 function taskbar(){ if(!NATIVE) return; let tot=0,done=0; batches.forEach(x=>{ if(x.status==='run'){ tot+=x.total; done+=x.done; } }); NATIVE.progress(tot?Math.min(1,done/tot):-1); }
+function txHead(){ const n=[...batches.values()].filter(x=>x.el&&x.el.isConnected).length; $('txCount').textContent=n;
+  $('txClear').hidden=![...batches.values()].some(x=>x.el&&x.el.isConnected&&['done','failed','rejected','cancelled'].includes(x.status)); $('emptyList').hidden=n>0; }
 function draw(b){
-  $('emptyList').hidden=true;
+  $('emptyList').hidden=true; setTimeout(txHead,0);
   if(!b.el){ b.el=document.createElement('article'); b.el.className='tx '+(b.dir==='in'?'in':'out'); $('list').prepend(b.el); }
   const n=b.meta.length, first=baseName(b.meta[0] ? b.meta[0].name : 'file');
   const title = n===1 ? first : first+' +'+(n-1)+' file';
@@ -1283,6 +1317,7 @@ function pushTx(b){
   if(window.KLM_EMBED){ try{ window.parent.KLMCF.tx(d); return; }catch(_){} }
   if(window.KLMTxDock) KLMTxDock.update(d);
 }
+$('txClear').onclick = () => { batches.forEach(x=>{ if(x.el && ['done','failed','rejected','cancelled'].includes(x.status)){ x.el.remove(); x.el=null; } }); txHead(); };
 window.__klmTxAct = (key, a) => { const b=batches.get(key); if(b && a!=='dismiss') txAct(b, a); };
 if(window.KLMTxDock) KLMTxDock.onAction = (key, a) => window.__klmTxAct(key, a);
 if(window.KLMTxDock) KLMTxDock.onOpenAll = () => { const t=$('txLbl'); if(t) t.scrollIntoView({behavior:'smooth',block:'start'}); };

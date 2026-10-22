@@ -36,6 +36,7 @@ Di iPhone: Safari → Bagikan → Tambahkan ke Layar Utama.
 - **Panduan potong**: garis bantu, tanda sudut, garis tepi.
 - **Kertas**: A4, F4, Letter, Legal, A5, A3, 4R, 5R, 6R, 8R, ukuran sendiri; tegak/mendatar; margin.
 - **Kalibrasi printer**: cetak halaman uji, ukur garis 100 mm, aplikasi menyesuaikan skala dan geser.
+- **Angka bisa diketik manual**: setiap slider (mm, derajat kemiringan, %, ukuran kuas, dll.) punya kotak angka; ketik lalu Enter, atau panah atas/bawah. Ukuran mm dan kemiringan boleh melebihi batas slider.
 - Tema terang/gelap, tempel foto (Ctrl+V), seret-lepas, kamera HP.
 
 Foto yang diunggah dan pengerjaannya (edit, posisi, layout) tersimpan di perangkat, jadi tidak hilang saat halaman di-refresh atau aplikasi ditutup. Semua pemrosesan dilakukan di perangkat; tidak ada foto yang diunggah ke server.

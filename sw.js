@@ -1,5 +1,5 @@
 // KLM Cetak Foto — service worker (offline)
-const VERSION = 'klm-cetak-v13';
+const VERSION = 'klm-cetak-v14';
 const CORE = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './sender/index.html', './sender/vendor/qrcode.js'];
 
 self.addEventListener('install', e => {

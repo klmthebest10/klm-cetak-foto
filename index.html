@@ -91,6 +91,16 @@ svg.i{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .nob{position:absolute;left:-5px;top:-5px;min-width:22px;height:20px;padding:0 5px;border-radius:8px;background:var(--coral);color:#fff;border:2px solid var(--ink);font:800 11px/16px var(--f-body);text-align:center;font-variant-numeric:tabular-nums;box-shadow:1px 1px 0 var(--shadow)}
 .nol{display:inline-block;background:var(--coral-soft);color:var(--coral);font-weight:800;font-size:11px;padding:1px 6px;border-radius:6px;margin-right:2px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .lib-search{width:100%}
+.numw{display:inline-flex;align-items:center;gap:4px;flex:none}
+.numed{width:68px;min-height:28px;border:2px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--ink);font:800 13px var(--f-body);text-align:right;padding:2px 6px;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.numed::-webkit-inner-spin-button,.numed::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.numed:focus{border-color:var(--ink);outline:none;background:var(--surface)}
+.fld .numw input.numed{width:68px;min-height:28px;padding:2px 6px;border-radius:8px;flex:none}
+.fld>span{gap:8px}
+.fld>span>.numw{margin-left:auto}
+.numw i{font-style:normal;font-weight:800;font-size:12px;color:var(--muted);min-width:10px}
+.fld>span{align-items:center}
+.fld>span>b.numsrc{display:none}
 #edTitle{flex:1;min-width:0;border:2px solid transparent;background:transparent;font:700 18px/1.2 var(--f-disp);color:var(--ink);padding:3px 6px;border-radius:8px}
 #edTitle:hover,#edTitle:focus{border-color:var(--line);background:var(--surface2);outline:none}
 .ed-no{font:800 13px var(--f-body);background:var(--coral);color:#fff;border:2px solid var(--ink);border-radius:9px;padding:3px 8px;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -318,7 +328,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.2</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.3</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -1340,7 +1350,7 @@ function renderDocList(){
   $('#docAdd').innerHTML=photoOpts('','+ Pakai foto yang ada')}
 function renderPanels(){renderJobs();renderGridList();renderCardSlots();renderDocList()}
 function fillInputs(){
-  $$('[data-k]').forEach(el=>{const v=getP(S,el.dataset.k);if(el.type==='checkbox')el.checked=!!v;else if(document.activeElement!==el)el.value=v});
+  $$('[data-k]').forEach(el=>{const v=getP(S,el.dataset.k);if(el.type==='checkbox')el.checked=!!v;else if(document.activeElement!==el){if(el.type==='range'){if(+v>+el.max)el.max=v;if(+v<+el.min)el.min=v}el.value=v}});
   $$('[data-out]').forEach(el=>{const inp=$(`[data-k="${el.dataset.out}"]`);el.textContent=fmt(getP(S,el.dataset.out))+' '+(inp?.dataset.unit||'')});
   $$('[data-orient]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.orient===S.orient));
   $$('[data-show="paper.custom"]').forEach(e=>e.hidden=S.paper!=='custom');
@@ -1423,7 +1433,7 @@ function edZoomAt(f,px,py){const wrap=$('#edWrap'),cx=wrap.clientWidth/2,cy=wrap
 function openEditor(id,o={}){const p=photos.get(id);if(!p)return;E.p=p;E.z=1;E.tx=E.ty=0;$('#edTitle').value=p.name;$('#edNo').textContent='No. '+noTxt(p);fillEditor();
   if(!$('#editor').open)$('#editor').showModal();setEdMode(o.crop?'crop':'view',o.aspect);requestAnimationFrame(drawEditor)}
 function fillEditor(){const p=E.p;
-  $$('[data-ed]').forEach(el=>{const v=getP(p,el.dataset.ed);if(el.type==='checkbox')el.checked=!!v;else el.value=v});
+  $$('[data-ed]').forEach(el=>{const v=getP(p,el.dataset.ed);if(el.type==='checkbox')el.checked=!!v;else{if(el.type==='range'){if(+v>+el.max)el.max=v;if(+v<+el.min)el.min=v}el.value=v}});
   $$('[data-edout]').forEach(el=>el.textContent=getP(p,el.dataset.edout));
   $('#edFilters').innerHTML=FILTERS.map(f=>`<button data-filter="${f[0]}" class="${p.adj.filter===f[0]?'on':''}">${f[1]}</button>`).join('');
   $('#bgSw').innerHTML=BG_COLORS.map(([c,n])=>`<button class="sw${p.bg.color.toUpperCase()===c?' on':''}" style="background:${c}" data-bgc="${c}" title="${n}" aria-label="Latar ${n}"></button>`).join('')+`<label class="sw" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" title="Warna lain"><input type="color" id="bgPick" value="${p.bg.color}"></label>`;
@@ -1566,6 +1576,40 @@ async function exportPdf(){const pages=V.pages;if(!hasPhotos(pages)){toast('Belu
     for(let i=0;i<pages.length;i++){$('#gbTxt').textContent=`Membuat PDF ${i+1}/${pages.length}…`;await tick();if(i)pdf.addPage([W,H],o);const c=renderFull(pages[i],num(S.dpi));pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',0,0,W,H,undefined,'FAST')}
     dl(pdf.output('blob'),fileBase()+'.pdf');toast('PDF diunduh')}catch(e){toast('Gagal membuat PDF. Coba turunkan resolusi ke 200 dpi.')}finally{gbusy(false)}}
 
+/* ============ ANGKA BISA DIKETIK MANUAL ============ */
+/* Setiap slider mendapat kotak angka di sebelahnya: ketik nilai (mm, derajat, %, dst.), tekan Enter atau pindah kolom. */
+const NUM_UNITS={tilt:'°','adj.sharp':'','adj.denoise':'','adj.smooth':'','bg.tol':'','bg.hair':'','bg.feather':'',frZoom:'×',frTilt:'°',exSize:'px',exZoom:'%',exHard:'%',tiltDoc:'°',tiltCard:'°'};
+// slider ini boleh diisi melebihi batas geser (ukuran mm, kemiringan); lainnya dibatasi min–maks
+const NUM_FREE=el=>!!el.dataset.k||el.dataset.ed==='tilt'||el.id==='frTilt'||el.dataset.act==='tiltDoc';
+function numKey(el){return el.dataset.k||el.dataset.ed||el.id||el.dataset.act||''}
+function enhanceRange(el){
+  if(el._num)return;const lab=el.closest('.fld');const sp=lab&&lab.querySelector(':scope>span');if(!sp)return;
+  const b=sp.querySelector('b');const k=numKey(el);
+  let unit=el.dataset.unit!=null?el.dataset.unit:(NUM_UNITS[k]!=null?NUM_UNITS[k]:'');
+  if(!unit&&b){const m=(b.textContent||'').trim().match(/[^\d\s.,\-−]+$/);if(m)unit=m[0]}
+  const w=document.createElement('span');w.className='numw';
+  const n=document.createElement('input');n.type='number';n.step='any';n.className='numed';n.inputMode='decimal';n.setAttribute('aria-label',(sp.firstChild&&sp.firstChild.textContent||'Nilai').trim());
+  const u=document.createElement('i');u.textContent=unit;w.append(n,u);
+  if(b){b.classList.add('numsrc');b.after(w)}else sp.append(w);
+  el._num=n;n._range=el;n.value=fmtNum(el.value);
+  const apply=()=>{let v=parseFloat(String(n.value).replace(',','.'));if(!isFinite(v)){n.value=fmtNum(el.value);return}
+    const mn=parseFloat(el.min),mx=parseFloat(el.max);
+    if(NUM_FREE(el)){if(v>mx)el.max=String(v);if(v<mn)el.min=String(v)}else{if(isFinite(mn))v=Math.max(mn,v);if(isFinite(mx))v=Math.min(mx,v)}
+    v=Math.round(v*100)/100;el.value=String(v);n.value=fmtNum(v);
+    el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};
+  n.addEventListener('change',apply);
+  n.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();apply();n.blur()}
+    else if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();const st=parseFloat(el.step)||1;n.value=fmtNum((parseFloat(n.value)||0)+(e.key==='ArrowUp'?st:-st));apply()}});
+  n.addEventListener('click',e=>e.stopPropagation());n.addEventListener('focus',()=>n.select());
+  el.addEventListener('input',()=>{if(document.activeElement!==n)n.value=fmtNum(el.value)})}
+function fmtNum(v){v=parseFloat(v);if(!isFinite(v))return'';return String(Math.round(v*100)/100)}
+function syncNums(){if(document.hidden)return;$$('input[type=range]').forEach(el=>{const n=el._num;if(n&&document.activeElement!==n){const t=fmtNum(el.value);if(n.value!==t)n.value=t}})}
+function bindNumEdit(){
+  $$('input[type=range]').forEach(enhanceRange);
+  new MutationObserver(ms=>{for(const m of ms)for(const nd of m.addedNodes){if(nd.nodeType!==1)continue;if(nd.matches&&nd.matches('input[type=range]'))enhanceRange(nd);nd.querySelectorAll&&nd.querySelectorAll('input[type=range]').forEach(enhanceRange)}})
+    .observe(document.body,{childList:true,subtree:true});
+  setInterval(syncNums,300)}
+
 /* ============ EVENT ============ */
 function onK(el){const k=el.dataset.k;let v=el.type==='checkbox'?el.checked:(el.type==='number'||el.type==='range'?num(el.value):el.value);setP(S,k,v);
   if(k==='grid.source'||k==='card.type'){renderPanels()}
@@ -1671,7 +1715,7 @@ function bind(){
   if('serviceWorker'in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
   window.addEventListener('afterprint',()=>{$('#printArea').innerHTML=''})}
 
-bind();bindEditor();bindFramer();bindEraser();setMode(S.mode);refreshAll();
+bind();bindEditor();bindFramer();bindEraser();bindNumEdit();setMode(S.mode);refreshAll();
 restoreSession();
 if(S.senderOn)ensureSender();   // tetap siap menerima file di latar belakang
 </script>

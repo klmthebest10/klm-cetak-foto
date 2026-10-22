@@ -21,7 +21,8 @@ Buka alamatnya di Chrome → tombol **Pasang App** muncul di kanan atas (atau me
 Di iPhone: Safari → Bagikan → Tambahkan ke Layar Utama.
 
 ## Fitur
-- **Nomor foto otomatis**: setiap foto/dokumen yang diunggah langsung diberi nomor (01, 02, …) yang tampil di daftar, pilihan foto, slot KTP, dokumen, dan pratinjau lembar (tidak ikut tercetak). Cari cepat lewat kolom "Cari no. foto / nama" (Enter membuka foto), nama bisa diganti di halaman Edit (mis. nama pelanggan). Nomor mulai lagi dari 01 setelah semua foto dihapus.
+- **Nomor foto otomatis**: setiap foto/dokumen yang diunggah langsung diberi nomor (01, 02, …) yang tampil di daftar, pilihan foto, slot KTP, dan dokumen. Cari cepat lewat kolom "Cari no. foto / nama" (Enter membuka foto), nama bisa diganti di halaman Edit (mis. nama pelanggan). Nomor mulai lagi dari 01 setelah semua foto dihapus.
+- **Lembar kerja**: tombol **+ Lembar baru** untuk membuat beberapa lembar kerja sekaligus (mis. Lembar 1 pas foto pelanggan A, Lembar 2 KTP pelanggan B). Tiap lembar punya mode, kertas, dan isinya sendiri; cetak/PDF/PNG bisa untuk **Lembar ini** atau **Semua lembar**.
 - **Pas Foto**: 2×3, 3×4, 4×6, 3×3, 4×4, paspor 3,5×4,5, visa 2×2 inci, 2R/3R/4R, ukuran sendiri. Campur beberapa ukuran dalam satu lembar, tombol "Penuhi lembar", paket cepat, panduan posisi wajah, teks nama di bawah foto.
 - **Layout Grid**: 1×1 s.d. 5×6 atau bebas (kolom × baris), 1 foto diulang atau berurutan, putar otomatis, teks keterangan.
 - **KTP & Kartu**: depan + belakang (atas-bawah / kiri-kanan), ukuran asli 85,6×54 mm atau diperbesar, beberapa salinan per lembar, hitam-putih, sudut bulat. **Luruskan** foto KTP yang difoto miring dengan menggeser 4 sudut.

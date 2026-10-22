@@ -136,6 +136,17 @@ select.pick,input.pick{border:2px solid var(--ink);border-radius:12px;background
 .info{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px}
 .chip{background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:3px 10px;font-weight:700;font-variant-numeric:tabular-nums}
 .chip b{color:var(--coral)}
+.sheets{display:flex;gap:6px;align-items:center;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:thin}
+.sht{display:inline-flex;align-items:center;gap:6px;flex:none;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:5px 6px 5px 10px;font-weight:800;font-size:13px;cursor:pointer;color:var(--muted);min-height:36px}
+.sht small{font-weight:700;font-size:11px;color:var(--muted);background:var(--surface2);border-radius:6px;padding:1px 6px}
+.sht[aria-selected="true"]{border-color:var(--ink);color:var(--ink);box-shadow:3px 3px 0 var(--shadow);background:var(--surface)}
+.sht[aria-selected="true"] small{background:var(--sun);color:#1E2142}
+.sht .x{border:0;background:transparent;color:var(--muted);width:22px;height:22px;border-radius:7px;display:grid;place-items:center;cursor:pointer;padding:0}
+.sht .x:hover{background:var(--surface2);color:var(--danger)}
+.sht .x.armed{background:var(--danger);color:#fff}
+.sht-add{flex:none;display:inline-flex;align-items:center;gap:6px;border:2px dashed var(--ink);background:var(--coral-soft);color:var(--coral);border-radius:12px;padding:5px 12px;font-weight:800;font-size:13px;cursor:pointer;min-height:36px}
+.sht-add:hover{background:var(--coral);color:#fff;border-style:solid}
+.sht-add svg{width:18px;height:18px}
 .outbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .outbar .grow{flex:1}
 
@@ -328,7 +339,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.3</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.4</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -369,12 +380,14 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
       </div>
       <div class="info" id="info"></div>
     </div>
+    <div class="sheets" id="sheetTabs" role="tablist" aria-label="Lembar kerja"></div>
     <div class="desk" id="desk">
       <div class="hint"><span id="hintTxt">Ketuk foto di lembar untuk mengatur posisi</span></div>
       <canvas id="sheet" aria-label="Pratinjau kertas"></canvas>
       <div class="pager" id="pager"><button id="prevPg" aria-label="Halaman sebelumnya"><svg class="i"><use href="#i-l"/></svg></button><span id="pgTxt">1 / 1</span><button id="nextPg" aria-label="Halaman berikutnya"><svg class="i"><use href="#i-r"/></svg></button></div>
     </div>
     <div class="outbar">
+      <select class="pick" id="outScope" hidden aria-label="Yang dicetak"><option value="cur">Lembar ini</option><option value="all">Semua lembar</option></select>
       <button class="btn primary" id="printBtn"><svg class="i"><use href="#i-print"/></svg>Cetak</button>
       <button class="btn mint" id="pdfBtn"><svg class="i"><use href="#i-pdf"/></svg>PDF</button>
       <button class="btn" id="pngBtn"><svg class="i"><use href="#i-img"/></svg>PNG</button>
@@ -688,7 +701,7 @@ const DEF={mode:'pas',theme:'system',paper:'A4',orient:'portrait',pw:210,ph:297,
   frame:{style:'none',color:'#FFFFFF',width:2,radius:0},
   calib:{sx:100,sy:100,ox:0,oy:0},
   pas:{jobs:[{photo:null,size:'3x4',count:4,cw:30,ch:40},{photo:null,size:'2x3',count:4,cw:20,ch:30}],gap:2,align:'left',sort:'1',caption:''},
-  senderOn:false,nextNo:1,
+  senderOn:false,nextNo:1,sheets:[],cur:0,outScope:'cur',
   grid:{rows:3,cols:2,gap:4,fit:'cover',source:'repeat',autorot:true,photos:[],pages:1,caption:'',capSize:10},
   card:{type:'ktp',orientF:'auto',orientB:'auto',cw:85.6,ch:53.98,front:null,back:null,layout:'stack',pos:'top',scale:'100',copies:1,gap:10,radius:3,gray:false,outline:true},
   doc:{pages:[],per:'1',fit:'contain',scale:100,autorot:true,outline:false}};
@@ -696,10 +709,20 @@ function clone(o){return JSON.parse(JSON.stringify(o))}
 function merge(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&a[k]&&typeof a[k]==='object')merge(a[k],b[k]);else if(k in a)a[k]=b[k]}return a}
 let S=clone(DEF);
 try{const sv=JSON.parse(localStorage.getItem('klmcetak.v1')||'null');if(sv)S=merge(clone(DEF),sv)}catch(e){}
+/* ---------- lembar kerja: tiap lembar menyimpan mode, kertas, dan isinya sendiri ---------- */
+const SHEET_KEYS=['mode','paper','orient','pw','ph','margin','cut','frame','pas','grid','card','doc'];
+const MODE_NAMES={pas:'Pas Foto',grid:'Grid',card:'KTP',doc:'Dokumen'};
+function pickSheet(src){const o={};SHEET_KEYS.forEach(k=>o[k]=clone(src[k]));return o}
+function saveCur(){if(!Array.isArray(S.sheets))S.sheets=[];S.sheets[S.cur]=pickSheet(S)}
+if(!Array.isArray(S.sheets)||!S.sheets.length){S.sheets=[pickSheet(S)];S.cur=0}
+S.cur=Math.min(Math.max(0,S.cur|0),S.sheets.length-1);
+function cleanRefs(st,ok){st.pas.jobs.forEach(j=>{if(!ok(j.photo))j.photo=null});st.grid.photos=st.grid.photos.filter(ok);if(!ok(st.card.front))st.card.front=null;if(!ok(st.card.back))st.card.back=null;st.doc.pages=st.doc.pages.filter(ok)}
+function cleanOtherSheets(){const ok=id=>id&&photos.has(id);S.sheets.forEach((st,i)=>{if(i!==S.cur)cleanRefs(st,ok)})}
+function withSheet(st,fn){const bk={};SHEET_KEYS.forEach(k=>{bk[k]=S[k];S[k]=st[k]});try{return fn()}finally{SHEET_KEYS.forEach(k=>S[k]=bk[k])}}
 /* rujukan foto dipulihkan dari IndexedDB saat aplikasi dibuka (lihat restoreSession) */
 const photos=new Map();let seq=0;
 const V={page:0,pages:[],pxmm:1,pendingSlot:null};
-let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem('klmcetak.v1',JSON.stringify(S))}catch(e){}},300)}
+let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{saveCur();localStorage.setItem('klmcetak.v1',JSON.stringify(S))}catch(e){}},300)}
 
 /* ============ UTIL ============ */
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
@@ -1094,7 +1117,7 @@ async function restoreSession(){
   {let mx=0;photos.forEach(p=>{mx=Math.max(mx,num(p.no))});photos.forEach(p=>{if(!p.no){p.no=++mx;persist(p)}});S.nextNo=Math.max(num(S.nextNo)||1,mx+1);save()}
   // rujukan yang fotonya sudah tidak ada dibersihkan
   const ok=id=>id&&photos.has(id);
-  S.pas.jobs.forEach(j=>{if(!ok(j.photo))j.photo=null});S.grid.photos=S.grid.photos.filter(ok);if(!ok(S.card.front))S.card.front=null;if(!ok(S.card.back))S.card.back=null;S.doc.pages=S.doc.pages.filter(ok);
+  cleanRefs(S,ok);cleanOtherSheets();
   refreshAll();
   for(const p of photos.values()){$('#gbTxt').textContent='Menyiapkan '+p.name+'…';await processPhoto(p)}
   gbusy(false);refreshAll();if(recs&&recs.length)toast(recs.length+' foto dipulihkan')}
@@ -1249,8 +1272,6 @@ function drawItem(ctx,it,k,preview){
   const irad=(st==='putih'||st==='polaroid'||st==='gelombang')?Math.max(0,rad-bw):rad;
   ctx.save();rr(ctx,ix,iy,iw,ih,irad);ctx.clip();
   if(img){const f=framingFor(p,it);drawImageInRect(ctx,img,ix,iy,iw,ih,{fit:it.fit,autorot:it.autorot,...f})}
-  if(preview&&p&&p.no&&S.showNo!==false){ctx.save();const fs=Math.max(8,Math.min(13,Math.min(iw,ih)*0.16)),t=noTxt(p);ctx.font=`800 ${fs}px Nunito,sans-serif`;const tw=ctx.measureText(t).width+fs*0.8,th=fs*1.35;
-    ctx.globalAlpha=.9;ctx.fillStyle='#FF6B4A';rr(ctx,ix+2,iy+2,tw,th,th/2.4);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle='#fff';ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillText(t,ix+2+fs*0.4,iy+2+th/2);ctx.restore()}
   else if(preview){ctx.fillStyle='#EEF1F8';ctx.fillRect(ix,iy,iw,ih);ctx.strokeStyle='#B9C1D9';ctx.setLineDash([4,4]);ctx.lineWidth=1.5;ctx.strokeRect(ix+1,iy+1,iw-2,ih-2);ctx.setLineDash([]);
     ctx.fillStyle='#8A91B4';ctx.font=`700 ${Math.max(9,Math.min(iw,ih)*0.11)}px Nunito,sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(it.label||(p?'Memproses…':'Ketuk: pilih foto'),ix+iw/2,iy+ih/2)}
   ctx.restore();
@@ -1302,8 +1323,8 @@ function drawNow(){
   $('#pgTxt').textContent=(V.page+1)+' / '+pages.length;$('#prevPg').disabled=V.page===0;$('#nextPg').disabled=V.page>=pages.length-1;
   updateInfo(pages)}
 function updateInfo(pages){
-  const[W,H]=paperDims();const tot=pages.reduce((a,p)=>a+p.items.length,0);let html=`<span class="chip">${fmt(W)}×${fmt(H)} mm</span><span class="chip"><b>${pages.length}</b> lembar</span>`;
-  if(S.mode==='pas'){html+=`<span class="chip"><b>${tot}</b> foto</span>`;const j=S.pas.jobs[0];if(j){const[w,h]=pasSize(j);html+=`<span class="chip">${fmt(w/10)}×${fmt(h/10)} cm muat ${fitCount(w,h)}/lembar</span>`}}
+  const[W,H]=paperDims();const tot=pages.reduce((a,p)=>a+p.items.length,0);let html=`<span class="chip">${fmt(W)}×${fmt(H)} mm</span><span class="chip"><b>${pages.length}</b> kertas</span>`;
+  if(S.mode==='pas'){html+=`<span class="chip"><b>${tot}</b> foto</span>`;const j=S.pas.jobs[0];if(j){const[w,h]=pasSize(j);html+=`<span class="chip">${fmt(w/10)}×${fmt(h/10)} cm muat ${fitCount(w,h)}/kertas</span>`}}
   if(S.mode==='grid'){const it=pages[0].items[0];if(it)html+=`<span class="chip">kotak ${fmt(it.w)}×${fmt(it.h)} mm</span>`}
   if(S.mode==='card'){const[w,h]=cardSize('front');html+=`<span class="chip">kartu ${fmt(w*num(S.card.scale)/100)}×${fmt(h*num(S.card.scale)/100)} mm</span>`}
   if(S.mode==='doc')html+=`<span class="chip"><b>${S.doc.pages.length}</b> halaman dokumen</span>`;
@@ -1368,17 +1389,26 @@ function showView(v){V.view=v;const sv=v==='sender';$('main.app').hidden=sv;$('#
   $$('.tab').forEach(t=>t.setAttribute('aria-selected',sv?t.dataset.view==='sender':t.dataset.mode===S.mode));if(sv)ensureSender();else draw()}
 const KLMCF=window.KLMCF={q:Promise.resolve(),
   receive(file){this.q=this.q.then(async()=>{await addFiles([file]);toast('Diterima dari KLM Sender: '+file.name)}).catch(()=>{})}};
-async function buildPdfBlob(){const pages=V.pages.length?V.pages:layout();if(!hasPhotos(pages))throw new Error('kosong');if(!window.jspdf)throw new Error('jspdf');
-  const[W,H]=paperDims(),o=W>H?'l':'p',pdf=new window.jspdf.jsPDF({unit:'mm',format:[W,H],orientation:o,compress:true});
-  for(let i=0;i<pages.length;i++){$('#gbTxt').textContent=`Membuat PDF ${i+1}/${pages.length}…`;await tick();if(i)pdf.addPage([W,H],o);const c=renderFull(pages[i],num(S.dpi));pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',0,0,W,H,undefined,'FAST')}
+async function buildPdfBlob(){const ents=outEntries();if(!ents.length)throw new Error('kosong');if(!window.jspdf)throw new Error('jspdf');
+  const f=ents[0],pdf=new window.jspdf.jsPDF({unit:'mm',format:[f.W,f.H],orientation:f.W>f.H?'l':'p',compress:true});
+  for(let i=0;i<ents.length;i++){const e=ents[i];$('#gbTxt').textContent=`Membuat PDF ${i+1}/${ents.length}…`;await tick();if(i)pdf.addPage([e.W,e.H],e.W>e.H?'l':'p');const c=renderEntry(e,num(S.dpi));pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',0,0,e.W,e.H,undefined,'FAST')}
   return pdf.output('blob')}
 async function sendViaSender(){const f=ensureSender();let w;try{w=f.contentWindow}catch(e){}
   if(!w||!w.__klmQueue){showView('sender');toast('KLM Sender sedang disiapkan. Hubungkan perangkat, lalu tekan Kirim lagi.');return}
   if(!w.__klmTargets()){showView('sender');toast('Hubungkan dan pilih perangkat tujuan dulu.');return}
   gbusy(true,'Membuat PDF…');try{const b=await buildPdfBlob();w.__klmQueue([new File([b],fileBase()+'.pdf',{type:'application/pdf'})]);showView('sender');toast('PDF dikirim lewat KLM Sender')}
   catch(e){toast(e.message==='kosong'?'Belum ada foto di lembar untuk dikirim.':'Gagal membuat PDF. Sambungkan internet sekali, lalu coba lagi.')}finally{gbusy(false)}}
+function renderSheetTabs(){const T=$('#sheetTabs');if(!T)return;
+  T.innerHTML=S.sheets.map((st,i)=>{const on=i===S.cur,m=on?S.mode:st.mode;return `<div class="sht" role="tab" data-sheet="${i}" aria-selected="${on}" tabindex="0">Lembar ${i+1}<small>${MODE_NAMES[m]||''}</small>${S.sheets.length>1?`<button class="x" data-sheetdel="${i}" aria-label="Hapus lembar ${i+1}" title="Hapus lembar">${icon('i-x')}</button>`:''}</div>`}).join('')+
+    `<button class="sht-add" id="sheetAdd" title="Tambah lembar kerja baru">${icon('i-plus')}Lembar baru</button>`;
+  const os=$('#outScope');if(os){os.hidden=S.sheets.length<2;os.value=S.outScope||'cur'}}
+function switchSheet(i){if(i===S.cur||!S.sheets[i])return;saveCur();const st=clone(S.sheets[i]);SHEET_KEYS.forEach(k=>S[k]=st[k]);S.cur=i;V.page=0;setMode(S.mode);refreshAll();renderSheetTabs()}
+function addSheet(){saveCur();const n=pickSheet(clone(DEF));['paper','orient','pw','ph','margin','cut','mode'].forEach(k=>n[k]=clone(S[k]));
+  S.sheets.push(n);switchSheet(S.sheets.length-1);toast('Lembar '+S.sheets.length+' ditambahkan');const T=$('#sheetTabs');T.scrollLeft=T.scrollWidth}
+function delSheet(i){if(S.sheets.length<2)return;saveCur();S.sheets.splice(i,1);if(i<S.cur)S.cur--;else if(i===S.cur)S.cur=Math.min(S.cur,S.sheets.length-1);
+  const st=clone(S.sheets[S.cur]);SHEET_KEYS.forEach(k=>S[k]=st[k]);V.page=0;setMode(S.mode);refreshAll();renderSheetTabs();toast('Lembar dihapus')}
 function setMode(m){S.mode=m;V.view='print';$('main.app').hidden=false;$('#senderView').hidden=true;$$('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.mode===m));$$('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==m);
-  $('#optTitle').textContent={pas:'Pas Foto',grid:'Layout Grid',card:'KTP & Kartu',doc:'Dokumen'}[m];V.page=0;fillInputs();save();draw()}
+  $('#optTitle').textContent={pas:'Pas Foto',grid:'Layout Grid',card:'KTP & Kartu',doc:'Dokumen'}[m];renderSheetTabs();V.page=0;fillInputs();save();draw()}
 function refreshAll(){renderLib();renderPanels();fillInputs();draw()}
 
 /* ============ TAMBAH FOTO ============ */
@@ -1423,7 +1453,7 @@ function assignSlot(s,id){
   else if(s.kind==='card'){S.card[s.side]=id}
   else if(s.kind==='doc'){if(s.i==null)S.doc.pages.push(id);else S.doc.pages[s.i]=id}}
 function pickFiles(slot,cam){V.pendingSlot=slot||null;const inp=cam?$('#camIn'):$('#fileIn');inp.value='';inp.click()}
-function removePhoto(id){photos.delete(id);DB.del(id);if(!photos.size){S.nextNo=1;save()}S.pas.jobs.forEach(j=>{if(j.photo===id)j.photo=null});S.grid.photos=S.grid.photos.filter(x=>x!==id);
+function removePhoto(id){photos.delete(id);DB.del(id);cleanOtherSheets();if(!photos.size){S.nextNo=1;save()}S.pas.jobs.forEach(j=>{if(j.photo===id)j.photo=null});S.grid.photos=S.grid.photos.filter(x=>x!==id);
   if(S.card.front===id)S.card.front=null;if(S.card.back===id)S.card.back=null;S.doc.pages=S.doc.pages.filter(x=>x!==id);refreshAll()}
 
 /* ============ EDITOR ============ */
@@ -1556,25 +1586,28 @@ function renderFull(page,dpi){const[W0,H0]=paperDims();const maxPx=16.5e6;if(W0*
   const[W,H]=paperDims(),k=dpi/25.4,c=cv(W*k,H*k),x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
   x.save();x.translate(num(S.calib.ox)*k,num(S.calib.oy)*k);x.scale(num(S.calib.sx)/100||1,num(S.calib.sy)/100||1);drawPage(x,page,k,false);x.restore();return c}
 const toBlob=(c,t,q)=>new Promise(r=>c.toBlob(r,t,q));
+function outEntries(forceCur){saveCur();const all=!forceCur&&S.sheets.length>1&&S.outScope==='all',idx=all?S.sheets.map((_,i)=>i):[S.cur],out=[];
+  for(const i of idx){const st=S.sheets[i];withSheet(st,()=>{const[W,H]=paperDims();layout().forEach(pg=>{if(pg.items.some(it=>it.pid&&photos.get(it.pid)?.out))out.push({pg,st,W,H})})})}
+  return out}
+function renderEntry(e,dpi){return e.pg.calib?renderFull(e.pg,dpi):withSheet(e.st,()=>renderFull(e.pg,dpi))}
 function hasPhotos(pages){return pages.some(p=>p.calib||p.items.some(it=>it.pid&&photos.get(it.pid)?.out))}
 function fileBase(){const d=new Date();return `klm-${S.mode}-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`}
 function dl(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
 let printUrls=[];
-async function doPrint(pages){
-  if(!hasPhotos(pages)){toast('Tambahkan foto dulu sebelum mencetak.');return}
-  gbusy(true,'Menyiapkan cetak…');await tick();const area=$('#printArea');area.innerHTML='';printUrls.forEach(u=>URL.revokeObjectURL(u));printUrls=[];const[W,H]=paperDims();
-  for(let i=0;i<pages.length;i++){$('#gbTxt').textContent=`Menyiapkan lembar ${i+1}/${pages.length}…`;await tick();const c=renderFull(pages[i],num(S.dpi));const b=await toBlob(c,'image/png');const u=URL.createObjectURL(b);printUrls.push(u);
-    const im=new Image();im.src=u;im.style.width=W+'mm';im.style.height=H+'mm';area.appendChild(im);try{await im.decode()}catch(e){}}
-  $('#pageStyle').textContent=`@page{size:${W}mm ${H}mm;margin:0}`;gbusy(false);setTimeout(()=>window.print(),150)}
-async function exportImg(type){const pages=V.pages;if(!hasPhotos(pages)){toast('Belum ada foto untuk diunduh.');return}
-  gbusy(true,'Membuat gambar…');try{for(let i=0;i<pages.length;i++){$('#gbTxt').textContent=`Membuat lembar ${i+1}/${pages.length}…`;await tick();const c=renderFull(pages[i],num(S.dpi));
-    const b=await toBlob(c,type==='png'?'image/png':'image/jpeg',0.95);dl(b,`${fileBase()}${pages.length>1?'-'+(i+1):''}.${type}`);await new Promise(r=>setTimeout(r,350))}toast(pages.length>1?pages.length+' file diunduh':'File diunduh')}
+async function doPrint(calib){
+  const[W0,H0]=paperDims(),ents=calib?[{pg:{calib:true,items:[]},W:W0,H:H0}]:outEntries();
+  if(!ents.length){toast('Tambahkan foto dulu sebelum mencetak.');return}
+  gbusy(true,'Menyiapkan cetak…');await tick();const area=$('#printArea');area.innerHTML='';printUrls.forEach(u=>URL.revokeObjectURL(u));printUrls=[];
+  for(let i=0;i<ents.length;i++){const e=ents[i];$('#gbTxt').textContent=`Menyiapkan kertas ${i+1}/${ents.length}…`;await tick();const c=renderEntry(e,num(S.dpi));const b=await toBlob(c,'image/png');const u=URL.createObjectURL(b);printUrls.push(u);
+    const im=new Image();im.src=u;im.style.width=e.W+'mm';im.style.height=e.H+'mm';area.appendChild(im);try{await im.decode()}catch(_){}}
+  const{W,H}=ents[0];$('#pageStyle').textContent=`@page{size:${W}mm ${H}mm;margin:0}`;gbusy(false);setTimeout(()=>window.print(),150)}
+async function exportImg(type){const ents=outEntries();if(!ents.length){toast('Belum ada foto untuk diunduh.');return}
+  gbusy(true,'Membuat gambar…');try{for(let i=0;i<ents.length;i++){$('#gbTxt').textContent=`Membuat kertas ${i+1}/${ents.length}…`;await tick();const c=renderEntry(ents[i],num(S.dpi));
+    const b=await toBlob(c,type==='png'?'image/png':'image/jpeg',0.95);dl(b,`${fileBase()}${ents.length>1?'-'+(i+1):''}.${type}`);await new Promise(r=>setTimeout(r,350))}toast(ents.length>1?ents.length+' file diunduh':'File diunduh')}
   finally{gbusy(false)}}
-async function exportPdf(){const pages=V.pages;if(!hasPhotos(pages)){toast('Belum ada foto untuk dijadikan PDF.');return}
+async function exportPdf(){if(!outEntries().length){toast('Belum ada foto untuk dijadikan PDF.');return}
   if(!window.jspdf){toast('Pustaka PDF belum termuat. Sambungkan internet sekali, lalu coba lagi.');return}
-  gbusy(true,'Membuat PDF…');try{const[W,H]=paperDims(),o=W>H?'l':'p';const pdf=new window.jspdf.jsPDF({unit:'mm',format:[W,H],orientation:o,compress:true});
-    for(let i=0;i<pages.length;i++){$('#gbTxt').textContent=`Membuat PDF ${i+1}/${pages.length}…`;await tick();if(i)pdf.addPage([W,H],o);const c=renderFull(pages[i],num(S.dpi));pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',0,0,W,H,undefined,'FAST')}
-    dl(pdf.output('blob'),fileBase()+'.pdf');toast('PDF diunduh')}catch(e){toast('Gagal membuat PDF. Coba turunkan resolusi ke 200 dpi.')}finally{gbusy(false)}}
+  gbusy(true,'Membuat PDF…');try{dl(await buildPdfBlob(),fileBase()+'.pdf');toast('PDF diunduh')}catch(e){toast('Gagal membuat PDF. Coba turunkan resolusi ke 200 dpi.')}finally{gbusy(false)}}
 
 /* ============ ANGKA BISA DIKETIK MANUAL ============ */
 /* Setiap slider mendapat kotak angka di sebelahnya: ketik nilai (mm, derajat, %, dst.), tekan Enter atau pindah kolom. */
@@ -1656,7 +1689,7 @@ function bind(){
     else if(act==='docRotL'){rotateContent(S.doc.pages[ji],-90,it=>it.slot.kind==='doc')}
     else if(act==='docRot'){rotateContent(S.doc.pages[ji],90,it=>it.slot.kind==='doc')}
     else if(act==='docCrop'){openEditor(S.doc.pages[ji],{crop:true,aspect:'free'})}
-    else if(act==='calibPrint'){doPrint([{calib:true,items:[]}])}
+    else if(act==='calibPrint'){doPrint(true)}
     else if(act==='calibReset'){S.calib={sx:100,sy:100,ox:0,oy:0};$('#measX').value='';$('#measY').value=''}
     fillInputs();save();draw()});
   $('#opts').addEventListener('change',e=>{const a=e.target.closest('[data-act]');if(!a)return;const act=a.dataset.act,ji=+a.closest('[data-i]')?.dataset.i;
@@ -1683,7 +1716,7 @@ function bind(){
   $('#libSearch').addEventListener('keydown',e=>{if(e.key==='Enter'){const f=$('#lib .ph');if(f&&$$('#lib .ph').length===1)openEditor(f.dataset.id)}});
   $('#edTitle').addEventListener('input',e=>{const p=E.p;if(!p)return;p.name=e.target.value.slice(0,60)||('Foto '+noTxt(p));persist(p);renderLib();renderPanels()});
   $('#clearAll').addEventListener('click',e=>confirmTap(e.currentTarget,'Ketuk sekali lagi untuk menghapus SEMUA foto',()=>{const n=photos.size;[...photos.keys()].forEach(id=>photos.delete(id));DB.clear();
-    S.pas.jobs.forEach(j=>j.photo=null);S.grid.photos=[];S.card.front=S.card.back=null;S.doc.pages=[];S.nextNo=1;save();refreshAll();toast(n+' foto dihapus · nomor mulai lagi dari 01')}));
+    S.pas.jobs.forEach(j=>j.photo=null);S.grid.photos=[];S.card.front=S.card.back=null;S.doc.pages=[];cleanOtherSheets();S.nextNo=1;save();refreshAll();toast(n+' foto dihapus · nomor mulai lagi dari 01')}));
   $('#edDel').addEventListener('click',e=>confirmTap(e.currentTarget,'Ketuk sekali lagi untuk menghapus foto ini',()=>{const id=E.p.id;E.p=null;$('#editor').close();removePhoto(id);toast('Foto dihapus')}));$('#camBtn').addEventListener('click',()=>pickFiles(null,true));
   const onFiles=e=>{const s=V.pendingSlot;V.pendingSlot=null;addFiles([...e.target.files],s)};$('#fileIn').addEventListener('change',onFiles);$('#camIn').addEventListener('change',onFiles);
   $('#lib').addEventListener('click',e=>{const ph=e.target.closest('.ph');if(!ph)return;const id=ph.dataset.id,b=e.target.closest('[data-lib]');
@@ -1699,11 +1732,16 @@ function bind(){
     if(!it.pid||!photos.has(it.pid)){pickFiles(it.slot);return}
     openFramer(it)});
   $('#prevPg').addEventListener('click',()=>{V.page--;draw()});$('#nextPg').addEventListener('click',()=>{V.page++;draw()});
-  $('#printBtn').addEventListener('click',()=>doPrint(V.pages));$('#pdfBtn').addEventListener('click',exportPdf);
+  $('#printBtn').addEventListener('click',()=>doPrint());
+  $('#outScope').addEventListener('change',e=>{S.outScope=e.target.value;save()});
+  $('#sheetTabs').addEventListener('click',e=>{const add=e.target.closest('#sheetAdd');if(add){addSheet();return}
+    const del=e.target.closest('[data-sheetdel]');if(del){e.stopPropagation();const i=+del.dataset.sheetdel;confirmTap(del,'Ketuk × sekali lagi untuk menghapus Lembar '+(i+1),()=>delSheet(i));return}
+    const t=e.target.closest('[data-sheet]');if(t)switchSheet(+t.dataset.sheet)});
+  $('#sheetTabs').addEventListener('keydown',e=>{const t=e.target.closest('[data-sheet]');if(t&&(e.key==='Enter'||e.key===' ')){e.preventDefault();switchSheet(+t.dataset.sheet)}});$('#pdfBtn').addEventListener('click',exportPdf);
   $('#pngBtn').addEventListener('click',()=>exportImg('png'));$('#jpgBtn').addEventListener('click',()=>exportImg('jpg'));
   new ResizeObserver(()=>draw()).observe($('#desk'));
   document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea')||document.querySelector('dialog[open]'))return;
-    if(e.key==='ArrowRight'){V.page++;draw()}if(e.key==='ArrowLeft'){V.page--;draw()}if((e.ctrlKey||e.metaKey)&&e.key==='p'){e.preventDefault();doPrint(V.pages)}});
+    if(e.key==='ArrowRight'){V.page++;draw()}if(e.key==='ArrowLeft'){V.page--;draw()}if((e.ctrlKey||e.metaKey)&&e.key==='p'){e.preventDefault();doPrint()}});
   // tema
   const applyTheme=()=>{const r=document.documentElement;if(S.theme==='system')r.removeAttribute('data-theme');else r.setAttribute('data-theme',S.theme);
     $('#themeBtn use').setAttribute('href',S.theme==='light'?'#i-sun':S.theme==='dark'?'#i-moon':'#i-auto');syncSenderTheme();$('#themeBtn').title='Tema: '+({system:'ikuti sistem',light:'terang',dark:'gelap'}[S.theme])};

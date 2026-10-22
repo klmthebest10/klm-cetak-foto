@@ -109,7 +109,7 @@
     let note='';
     if(d.status==='wait')note=`<div class="txc-r"><span class="sp"></span>Menunggu ${esc(d.peer)} menerima… kiriman tetap menunggu, tidak akan gagal karena lama.</div>`;
     else if(d.status==='queue')note=`<div class="txc-r"><span class="sp"></span>Antre, menunggu kiriman sebelumnya selesai.</div>`;
-    else if(d.status==='relink')note=`<div class="txc-r"><span class="sp"></span>${esc(d.reason||'Koneksi terputus.')} Menyambung ulang otomatis${d.tries?` (percobaan ${d.tries})`:''}…</div>`;
+    else if(d.status==='relink')note=`<div class="txc-r"><span class="sp"></span>${d.reason?esc(d.reason)+' ':''}Menunggu ${esc(d.peer)} siap menerima, kiriman otomatis dilanjutkan.</div>`;
     else if(d.status==='offer')note=`<div class="txc-r">${esc(d.peer)} ingin mengirim ${d.files.length} file (${fmt(d.total)}).</div>`;
     else if(d.reason&&finished&&d.status!=='done')note=`<div class="txc-r">${esc(d.reason)}</div>`;
     let acc=0;const files=d.files.slice(0,60).map(f=>{const a0=acc;acc+=f.size;let cls='',ic='•',ex=fmt(f.size);

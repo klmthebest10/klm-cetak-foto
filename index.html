@@ -349,7 +349,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.7</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.8</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -1395,7 +1395,7 @@ function fillInputs(){
   $('#frameSw').innerHTML=FRAME_COLORS.map(c=>`<button class="sw${S.frame.color.toUpperCase()===c?' on':''}" style="background:${c}" data-fcol="${c}" aria-label="Warna ${c}"></button>`).join('')+`<label class="sw" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" title="Warna lain"><input type="color" id="fcolPick" value="${S.frame.color}"></label>`;
   $('#calibTxt').textContent=`Skala ${fmt(S.calib.sx,2)}% × ${fmt(S.calib.sy,2)}%`;
   $$('#gridPresets button').forEach(b=>b.classList.toggle('on',+b.dataset.c===+S.grid.cols&&+b.dataset.r===+S.grid.rows))}
-function ensureSender(){let f=$('#svFrame iframe');if(!f){f=document.createElement('iframe');f.title='KLM Sender';f.src='sender/index.html';f.setAttribute('allow','camera; clipboard-write; fullscreen');$('#svFrame').appendChild(f);
+function ensureSender(){let f=$('#svFrame iframe');if(!f){f=document.createElement('iframe');f.title='KLM Sender';f.src='sender/index.html';f.setAttribute('allow','camera; clipboard-write; fullscreen; screen-wake-lock');$('#svFrame').appendChild(f);
     f.addEventListener('load',()=>syncSenderTheme())}if(!S.senderOn){S.senderOn=true;save()}return f}
 function syncSenderTheme(){try{const d=$('#svFrame iframe').contentDocument.documentElement;if(S.theme==='system')d.removeAttribute('data-theme');else d.setAttribute('data-theme',S.theme)}catch(e){}}
 function showView(v){V.view=v;const sv=v==='sender';$('main.app').hidden=sv;$('#senderView').hidden=!sv;

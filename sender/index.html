@@ -243,6 +243,9 @@ button:focus-visible,input:focus-visible,.btn:focus-within{outline:3px solid #5B
 .overlay>.glass{background:var(--surface)}
 .toast{background:var(--ink);color:var(--surface)}
 .mark,.drop .big,.avatar,.tx.in .dir,.badge.done,.dark{outline:0}
+.dev.off{opacity:.75;border-style:dashed;cursor:default}
+.dev.off .tick{visibility:hidden}
+.relink-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--coral);margin-right:5px;vertical-align:middle;animation:pulse 1.2s infinite}
 .cf-note{display:flex;gap:10px;align-items:center;background:var(--mint-soft);border:2px solid var(--mint);border-radius:14px;padding:10px 14px;font-size:13px;font-weight:700;color:var(--ink)}
 html.embed #installBtn,html.embed #iosHint{display:none!important}
 html.embed .wrap{max-width:720px}
@@ -660,6 +663,7 @@ function makeLink(code, via, name, kind){
 }
 const isIdle = l => !l.sending && !l.queue.length && !(l.incoming && ['offer','run'].includes(l.incoming.status));
 function onNewLink(l, mine){
+  if(l.via==='p2p'){ addKeep(l.code, l.name); lostAt.delete(l.code); scheduleRelink(); }
   if(mine || (!selected.size && links.size===1)) selected.add(l.code);
   if(pending.has(l.code)) setTimeout(()=>{ if(links.get(l.code)===l) adoptPending(l); }, 600);
   if(pendingTo===l.code){ selected.add(l.code); pendingTo=''; }
@@ -668,6 +672,14 @@ function onNewLink(l, mine){
 /* ---------- kiriman tidak gagal karena lama / koneksi putus: diparkir lalu dikirim ulang otomatis ---------- */
 const pending = new Map();   // kode perangkat -> { name, batches:[] }
 const relinking = new Set(); let relinkTimer=0;
+/* perangkat yang selalu disambungkan ulang sampai diputuskan manual di salah satu perangkat */
+function loadKeep(){ try{ return JSON.parse(store.get('klm-keep')||'[]').filter(x=>x && /^[A-Z0-9]{6}$/.test(x.code)); }catch(e){ return []; } }
+let keep = loadKeep();
+const lostAt = new Map();
+function saveKeep(){ store.set('klm-keep', JSON.stringify(keep)); }
+function addKeep(code, name){ keep=keep.filter(k=>k.code!==code); keep.unshift({code, name:name||'Perangkat'}); keep=keep.slice(0,20); saveKeep(); }
+function dropKeep(code){ keep=keep.filter(k=>k.code!==code); saveKeep(); lostAt.delete(code); }
+const isKept = code => keep.some(k=>k.code===code);
 function park(b, why){
   if(b.cancel || b.dir!=='out') return;
   stopMeter(b); b.status='relink'; b.reason=why||('Koneksi ke '+b.link.name+' terputus.'); b.done=0; b.sentRaw=0; b.lost=false; b.tries=(b.tries||0);
@@ -675,18 +687,31 @@ function park(b, why){
   if(!e.batches.includes(b)) e.batches.push(b);
   render(b); scheduleRelink();
 }
-function scheduleRelink(){ if(relinkTimer) return; relinkTimer=setInterval(relinkTick, 6000); setTimeout(relinkTick, 1500); }
+function scheduleRelink(){ if(relinkTimer) return; relinkTimer=setInterval(relinkTick, 5000); setTimeout(relinkTick, 1200); }
 function relinkTick(){
-  if(!pending.size){ clearInterval(relinkTimer); relinkTimer=0; return; }
-  pending.forEach((e,code) => {
-    const l=links.get(code); if(l){ adoptPending(l); return; }
-    e.batches.forEach(b=>{ b.tries=(b.tries||0)+1; render(b); });
-    if(peer && peerReady && !relinking.has(code)){
+  const targets=new Set([...pending.keys(), ...keep.map(k=>k.code)]);
+  if(!targets.size){ clearInterval(relinkTimer); relinkTimer=0; return; }
+  let changed=false;
+  targets.forEach(code => {
+    const l=links.get(code); if(l){ adoptPending(l); lostAt.delete(code); return; }
+    if(!lostAt.has(code)){ lostAt.set(code, Date.now()); changed=true; }
+    const e=pending.get(code); if(e) e.batches.forEach(b=>{ b.tries=(b.tries||0)+1; render(b); });
+    // agar tidak saling tabrak, perangkat berkode lebih kecil yang menyambung; yang lain ikut menyambung bila sudah lama
+    const mine = myCode < code || Date.now()-lostAt.get(code) > 20000;
+    if(mine && peer && peerReady && !relinking.has(code)){
       relinking.add(code);
       try{ const c=peer.connect(PREFIX+code, {reliable:true, serialization:'raw', metadata:{name:myName, kind:myKind}}); c.__quiet=true; setupConn(c, true);
         setTimeout(()=>{ relinking.delete(code); if(!c.open){ try{c.close()}catch(_){} } }, 15000); }catch(_){ relinking.delete(code); }
     }
   });
+  if(changed) renderDevices();
+}
+document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible'){ lostAt.forEach((_,c)=>lostAt.set(c, 0)); relinkTick(); } });
+window.addEventListener('online', () => setTimeout(relinkTick, 1500));
+function manualDisconnect(code){
+  const l=links.get(code); dropKeep(code); pending.delete(code);
+  if(l){ lsend(l,{t:'bye'}); l.manual=true; if(l.cur) l.cur.cancel=true; const c=l.conn; setTimeout(()=>{ removeLink(l,true); try{c.close()}catch(e){} }, 250); }
+  renderDevices(); toast('Diputuskan. Tidak akan disambungkan ulang otomatis.');
 }
 function adoptPending(l){
   const e=pending.get(l.code); if(!e) return; pending.delete(l.code);
@@ -700,10 +725,11 @@ function removeLink(l, quiet){
   if(links.get(l.code)!==l) return;
   links.delete(l.code); selected.delete(l.code);
   for(const f of l.waiters.values()) f('closed'); l.waiters.clear();
+  if(!l.manual && isKept(l.code)){ lostAt.set(l.code, Date.now()); scheduleRelink(); }
   l.queue.forEach(b => { if(l.manual){ b.status='cancelled'; b.reason='Perangkat diputuskan'; render(b); } else park(b); }); l.queue=[];
   if(l.cur){ l.cur.lost=true; if(l.cur.xhr) l.cur.xhr.abort(); }
   if(l.incoming && ['offer','run'].includes(l.incoming.status)) failIncoming(l,'Koneksi terputus');
-  if(!quiet) toast(l.name+' terputus.');
+  if(!quiet) toast(l.name+(l.manual||!isKept(l.code)?' terputus.':' terputus, menyambung ulang otomatis…'));
   renderDevices(); updateStatus();
 }
 function lsend(l, obj){
@@ -718,7 +744,14 @@ function renderDevices(){
   $('devCount').textContent = list.length;
   $('selBar').hidden = list.length<2;
   const el=$('devList');
-  if(!list.length){
+  const off=keep.filter(k=>!links.has(k.code));
+  const offHtml=off.map(k=>'<div class="dev off" data-code="'+k.code+'"><span class="tick"></span><div class="dev-ic">'+ICON.pc+'</div>'+
+    '<div class="dev-who"><b>'+esc(k.name)+'</b><small>'+fmtCode(k.code)+' · <span class="relink-dot"></span>Terputus, menyambung ulang otomatis…</small></div>'+
+    '<button class="small ghost" data-x="'+k.code+'">Putuskan</button></div>').join('');
+  if(!list.length && off.length){
+    el.innerHTML = offHtml;
+    el.querySelectorAll('[data-x]').forEach(b => b.onclick = () => manualDisconnect(b.dataset.x));
+  } else if(!list.length){
     el.innerHTML = '<div class="devs-empty">'+(NATIVE
       ? 'Belum ada perangkat. Pindai QR di atas dengan HP atau masukkan kode perangkat lain.'
       : 'Belum ada perangkat. Pindai QR perangkat lain atau masukkan kodenya di bawah.')+'</div>';
@@ -728,13 +761,13 @@ function renderDevices(){
       '<div class="dev-ic">'+ICON[l.kind]+'</div>'+
       '<div class="dev-who"><b>'+esc(l.name)+'</b><small>'+fmtCode(l.code)+' · '+esc(l.route)+'</small></div>'+
       (l.via==='p2p' ? '<button class="small ghost" data-x="'+l.code+'">Putuskan</button>' : '')+
-      '</div>').join('');
-    el.querySelectorAll('.dev').forEach(d => {
+      '</div>').join('')+offHtml;
+    el.querySelectorAll('.dev:not(.off)').forEach(d => {
       const t = () => { const c=d.dataset.code; selected.has(c)?selected.delete(c):selected.add(c); renderDevices(); };
       d.onclick = e => { if(!e.target.closest('[data-x]')) t(); };
       d.onkeydown = e => { if(e.key===' '||e.key==='Enter'){ e.preventDefault(); t(); } };
     });
-    el.querySelectorAll('[data-x]').forEach(b => b.onclick = () => { const l=links.get(b.dataset.x); if(l){ const c=l.conn; l.manual=true; if(l.cur) l.cur.cancel=true; pending.delete(l.code); removeLink(l,true); try{c.close()}catch(e){} toast('Diputuskan.'); } });
+    el.querySelectorAll('[data-x]').forEach(b => b.onclick = () => manualDisconnect(b.dataset.x));
   }
   for(const c of [...selected]) if(!links.has(c)) selected.delete(c);
   updateDrop();
@@ -835,7 +868,7 @@ function startPeer(){
   peer = p;
   p.on('open', () => {
     if(peer!==p) return;
-    peerReady=true; peerStarting=false; updateStatus();
+    peerReady=true; peerStarting=false; updateStatus(); if(keep.length) scheduleRelink();
     if(pendingTo && !links.has(pendingTo)){ setTimeout(() => { if(pendingTo && !links.has(pendingTo)){ const c=pendingTo; pendingTo=''; connectTo(c); } }, hubSeen?1500:0); }
   });
   p.on('connection', c => setupConn(c,false));
@@ -902,8 +935,11 @@ $('copyCode').onclick = () => copy(fmtCode(myCode), 'Kode disalin.');
 /* ---------- pesan kontrol (sama untuk Wi-Fi lokal & internet) ---------- */
 function onControl(l, m){
   switch(m.t){
+    case 'bye':
+      l.manual=true; dropKeep(l.code); pending.delete(l.code); toast(l.name+' memutuskan koneksi.'); { const c=l.conn; removeLink(l,true); try{c.close()}catch(e){} }
+      break;
     case 'hello':
-      l.name=String(m.name||l.name).slice(0,40); l.kind=m.kind==='hp'?'hp':'pc';
+      l.name=String(m.name||l.name).slice(0,40); l.kind=m.kind==='hp'?'hp':'pc'; if(l.via==='p2p') addKeep(l.code, l.name);
       if(l.via==='p2p'){ rememberPeer(l.code,l.name); if(!l.greeted){ l.greeted=true; toast(l.name+' terhubung.'); } }
       renderDevices(); batches.forEach(b=>{ if(b.link===l) render(b); });
       break;
@@ -1245,6 +1281,7 @@ function pushTx(b){
 }
 window.__klmTxAct = (key, a) => { const b=batches.get(key); if(b && a!=='dismiss') txAct(b, a); };
 if(window.KLMTxDock) KLMTxDock.onAction = (key, a) => window.__klmTxAct(key, a);
+if(window.KLMTxDock) KLMTxDock.onOpenAll = () => { const t=$('txLbl'); if(t) t.scrollIntoView({behavior:'smooth',block:'start'}); };
 
 /* ---------- pilih & seret file ---------- */
 $('pickFiles').onchange = e => { queueFiles(e.target.files); e.target.value=''; };

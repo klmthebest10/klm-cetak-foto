@@ -349,7 +349,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.6</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.7</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -1401,7 +1401,7 @@ function syncSenderTheme(){try{const d=$('#svFrame iframe').contentDocument.docu
 function showView(v){V.view=v;const sv=v==='sender';$('main.app').hidden=sv;$('#senderView').hidden=!sv;
   $$('.tab').forEach(t=>t.setAttribute('aria-selected',sv?t.dataset.view==='sender':t.dataset.mode===S.mode));if(sv)ensureSender();else draw()}
 const KLMCF=window.KLMCF={q:Promise.resolve(),
-  tx(d){KLMTxDock.update(d)},txRemove(k){KLMTxDock.remove(k)},openSender(){showView('sender')},
+  tx(d){KLMTxDock.update(d)},txRemove(k){KLMTxDock.remove(k)},openSender(){KLMTxDock.onOpenAll()},
   receive(file){this.q=this.q.then(async()=>{await addFiles([file]);toast('Diterima dari KLM Sender: '+file.name)}).catch(()=>{})}};
 async function buildPdfBlob(){const ents=outEntries();if(!ents.length)throw new Error('kosong');if(!window.jspdf)throw new Error('jspdf');
   const f=ents[0],pdf=new window.jspdf.jsPDF({unit:'mm',format:[f.W,f.H],orientation:f.W>f.H?'l':'p',compress:true});
@@ -1770,6 +1770,7 @@ function bind(){
   window.addEventListener('afterprint',()=>{$('#printArea').innerHTML=''})}
 
 bind();bindEditor();bindFramer();bindEraser();bindNumEdit();
+KLMTxDock.onOpenAll=()=>{showView('sender');setTimeout(()=>{try{$('#svFrame iframe').contentDocument.getElementById('txLbl').scrollIntoView({behavior:'smooth',block:'start'})}catch(_){}},300)};
 KLMTxDock.onAction=(key,a)=>{try{const w=$('#svFrame iframe').contentWindow;w.__klmTxAct&&w.__klmTxAct(key,a)}catch(_){}};setMode(S.mode);refreshAll();
 restoreSession();
 if(S.senderOn)ensureSender();   // tetap siap menerima file di latar belakang

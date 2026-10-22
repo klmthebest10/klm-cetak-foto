@@ -2,7 +2,7 @@
 (function(){
   if(window.KLMTxDock) return;
   const css=`
-.txd{position:fixed;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:90;display:flex;flex-direction:column-reverse;gap:10px;width:min(380px,calc(100vw - 28px));max-height:calc(100dvh - 90px);overflow-y:auto;overscroll-behavior:contain;pointer-events:none;font-family:var(--f-body,system-ui,sans-serif)}
+.txd{position:fixed;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:90;display:flex;flex-direction:column;gap:10px;width:min(380px,calc(100vw - 28px));max-height:calc(100dvh - 90px);overflow-y:auto;overscroll-behavior:contain;pointer-events:none;font-family:var(--f-body,system-ui,sans-serif)}
 .txd>*{pointer-events:auto}
 .txc{flex:none;background:var(--surface,#fff);color:var(--ink,#1E2142);border:2px solid var(--ink,#1E2142);border-radius:16px;box-shadow:4px 4px 0 var(--shadow,#1E2142);overflow:hidden;animation:txin .22s ease-out}
 @keyframes txin{from{transform:translateY(14px);opacity:0}}
@@ -46,20 +46,43 @@
 .txc-a button.p{background:var(--coral,#FF6B4A);color:#fff}
 .txc-a button.g{box-shadow:none;border-color:var(--line,#D6DCEA);color:var(--muted,#62688C)}
 .txd-more{align-self:flex-end;font:800 12px var(--f-body,system-ui,sans-serif);border:2px solid var(--ink,#1E2142);background:var(--surface,#fff);color:var(--ink,#1E2142);border-radius:99px;padding:5px 12px;cursor:pointer;box-shadow:2px 2px 0 var(--shadow,#1E2142)}
+.txd-h{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.txd-h button,.txp{font:800 12.5px var(--f-body,system-ui,sans-serif);border:2px solid var(--ink,#1E2142);background:var(--surface,#fff);color:var(--ink,#1E2142);border-radius:99px;padding:6px 12px;cursor:pointer;box-shadow:2px 2px 0 var(--shadow,#1E2142);display:inline-flex;align-items:center;gap:6px}
+.txd-h button svg,.txp svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.txd.hide{display:none}
+.txp{position:fixed;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:91;padding:8px 14px;font-size:13px;max-width:calc(100vw - 28px)}
+.txp .pc{font-variant-numeric:tabular-nums;color:var(--coral,#FF6B4A)}
+.txp .ring{width:18px;height:18px;border-radius:50%;background:conic-gradient(var(--coral,#FF6B4A) var(--p,0%),var(--line,#D6DCEA) 0);display:inline-block;flex:none}
+.txp .need{background:#E5484D;color:#fff;border-radius:99px;padding:1px 8px;font-size:11px;animation:txpulse 1.2s ease-in-out infinite}
+@keyframes txpulse{50%{transform:scale(1.08)}}
+.txp.hide{display:none}
+@media (max-width:520px){.txp{right:calc(10px + env(safe-area-inset-right,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px))}}
 @media (max-width:520px){.txd{left:calc(10px + env(safe-area-inset-left,0px));right:calc(10px + env(safe-area-inset-right,0px));width:auto;bottom:calc(10px + env(safe-area-inset-bottom,0px))}}
 @media (prefers-reduced-motion:reduce){.txc,.txc-bar i,.txc-r .sp{animation:none!important}}`;
   const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
   const IC={out:'<svg viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>',in:'<svg viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M16 17H7V8"/></svg>',
-    x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',min:'<svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>'};
+    x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',down:'<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',swap:'<svg viewBox="0 0 24 24"><path d="M4 9h13l-4-4"/><path d="M20 15H7l4 4"/></svg>',list:'<svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>',min:'<svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>'};
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmt=b=>{b=+b||0;if(b<1024)return b+' B';const u=['KB','MB','GB','TB'];let i=-1;do{b/=1024;i++}while(b>=1024&&i<u.length-1);return b.toFixed(b<10?2:b<100?1:0)+' '+u[i]};
   const eta=s=>{if(!isFinite(s)||s<0)return'—';s=Math.round(s);if(s<60)return s+' dtk';const m=Math.floor(s/60);if(m<60)return m+' mnt '+(s%60)+' dtk';return Math.floor(m/60)+' jam '+(m%60)+' mnt'};
-  let dock=null;const cards=new Map(),state=new Map(),timers=new Map();
-  function ensure(){if(!dock){dock=document.createElement('div');dock.className='txd';dock.setAttribute('aria-live','polite');document.body.appendChild(dock)}return dock}
-  const API={onAction:null,
+  let dock=null,pill=null,head=null;const cards=new Map(),state=new Map(),timers=new Map();
+  let hidden=false;try{hidden=localStorage.getItem('klm-txd-min')==='1'}catch(e){}
+  function ensure(){if(!dock){dock=document.createElement('div');dock.className='txd';dock.setAttribute('aria-live','polite');
+      head=document.createElement('div');head.className='txd-h';
+      head.innerHTML=`<button data-h="all">${IC.list}Lihat semua</button><button data-h="hide" title="Kecilkan semua popup">${IC.down}Kecilkan</button>`;
+      head.addEventListener('click',e=>{const b=e.target.closest('[data-h]');if(!b)return;if(b.dataset.h==='hide')setHidden(true);else API.onOpenAll&&API.onOpenAll()});
+      dock.appendChild(head);document.body.appendChild(dock);
+      pill=document.createElement('button');pill.className='txp hide';pill.title='Buka popup proses transfer';pill.addEventListener('click',()=>setHidden(false));document.body.appendChild(pill)}
+    return dock}
+  function setHidden(h){hidden=h;try{localStorage.setItem('klm-txd-min',h?'1':'0')}catch(e){}refresh()}
+  function refresh(){if(!dock)return;const n=cards.size;dock.classList.toggle('hide',hidden||!n);pill.classList.toggle('hide',!hidden||!n);head.hidden=!n;
+    if(hidden&&n){let tot=0,dn=0,act=0,need=0;state.forEach(d=>{if(d.status==='run'){tot+=d.total;dn+=d.done;act++}if(d.status==='offer')need++});
+      const pc=tot?Math.round(dn/tot*100):0;
+      pill.innerHTML=`${act?`<span class="ring" style="--p:${pc}%"></span>`:IC.swap}<span>${n} kiriman${act?` · <span class="pc">${pc}%</span>`:''}</span>${need?`<span class="need">${need} perlu konfirmasi</span>`:''}`}}
+  const API={onAction:null,onOpenAll:null,show(){setHidden(false)},
     update(d){ensure();state.set(d.key,d);let c=cards.get(d.key);
       if(!c){if(innerWidth<640)cards.forEach(o=>{o._min=true;o.classList.add('min')});   // di HP: kartu lama dikecilkan, yang baru terbuka
-        c=document.createElement('section');c.className='txc';c.dataset.key=d.key;dock.appendChild(c);cards.set(d.key,c);
+        c=document.createElement('section');c.className='txc';c.dataset.key=d.key;const mr=dock.querySelector('.txd-more');(mr||head).after(c);cards.set(d.key,c);
         c.addEventListener('click',e=>{const b=e.target.closest('[data-txa]');if(b){e.stopPropagation();const a=b.dataset.txa;
           if(a==='close'){API.remove(d.key,true);return}if(a==='min'){c.classList.toggle('min');c._min=c.classList.contains('min');return}
           API.onAction&&API.onAction(d.key,a);return}
@@ -68,12 +91,12 @@
       paint(c,d);
       clearTimeout(timers.get(d.key));
       if(d.status==='done')timers.set(d.key,setTimeout(function h(){if(c._hover||!c._min&&c.matches(':focus-within')){timers.set(d.key,setTimeout(h,3000));return}API.remove(d.key)},12000));
-      tidy()},
-    remove(key,user){const c=cards.get(key);if(!c)return;cards.delete(key);state.delete(key);clearTimeout(timers.get(key));c.remove();if(user)API.onAction&&API.onAction(key,'dismiss');tidy()}};
+      tidy();refresh()},
+    remove(key,user){const c=cards.get(key);if(!c)return;cards.delete(key);state.delete(key);clearTimeout(timers.get(key));c.remove();if(user)API.onAction&&API.onAction(key,'dismiss');tidy();refresh()}};
   function tidy(){if(!dock)return;let more=dock.querySelector('.txd-more');const list=[...cards.values()];const MAX=3;
     list.forEach((c,i)=>{c.hidden=!dock._all&&i<list.length-MAX});
     const hid=dock._all?0:Math.max(0,list.length-MAX);
-    if(hid){if(!more){more=document.createElement('button');more.className='txd-more';more.onclick=()=>{dock._all=!dock._all;tidy()};dock.prepend(more)}more.textContent='+'+hid+' kiriman lain'}
+    if(hid){if(!more){more=document.createElement('button');more.className='txd-more';more.onclick=()=>{dock._all=!dock._all;tidy()};head.after(more)}more.textContent='+'+hid+' kiriman lain'}
     else if(more){if(dock._all&&list.length>MAX){more.textContent='Ringkas'}else{more.remove();dock._all=false}}}
   function paint(c,d){
     c.className='txc '+(d.dir==='in'?'in':'out')+(d.status==='done'?' done':'')+(c._min?' min':'');

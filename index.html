@@ -232,6 +232,10 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 .sw input{opacity:0;position:absolute;inset:0;cursor:pointer;width:100%;height:100%}
 .btn.on{background:var(--sun);color:#1E2142}
 .brush-chip{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:4;background:var(--ink);color:var(--surface);border-radius:999px;padding:5px 12px;font-weight:800;font-size:12.5px;pointer-events:none;white-space:nowrap}
+.zoombar.dz{left:10px;right:auto;bottom:10px}
+#sheet{will-change:transform}
+.desk.zoomed #sheet{cursor:grab}
+.desk.panning #sheet{cursor:grabbing}
 .zoombar{position:absolute;right:calc(10px + env(safe-area-inset-right,0px));bottom:10px;z-index:4;display:flex;background:var(--surface);border:2px solid var(--ink);border-radius:12px;box-shadow:3px 3px 0 var(--shadow);overflow:hidden}
 .zoombar button{border:0;background:transparent;min-width:40px;height:38px;font:800 16px var(--f-body);color:var(--ink);cursor:pointer;padding:0 8px}
 .zoombar button+button{border-left:2px solid var(--line)}
@@ -254,6 +258,14 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
 .ex-hint.off{opacity:0}
 .ex-seg button[aria-pressed="true"][data-exmode="erase"]{background:#E5484D;color:#fff}
 .ex-seg button[aria-pressed="true"][data-exmode="keep"]{background:var(--mint);color:#fff}
+.ex-seg button[aria-pressed="true"][data-exmode="paint"]{background:var(--sky);color:#fff}
+.ex-paint{flex-basis:100%;display:flex;flex-direction:column;gap:8px;padding-bottom:8px;border-bottom:2px dashed var(--line)}
+.ex-paint .chips button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.ex-prow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.exlbl{font-weight:800;font-size:13px;color:var(--muted)}
+#exPick[aria-pressed="true"],#exClone[aria-pressed="true"]{background:var(--sun);color:#1E2142}
+.ex-paint .fld{max-width:360px}
+@media (max-width:600px){.ex-paint .chips,#exSw{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}.ex-paint .chips button,#exSw .sw{flex:none}.ex-paint{gap:6px}}
 .ex-bot .fld{flex:1;min-width:150px}
 .ex-tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .ex-tools [aria-pressed="true"]{background:var(--sun);color:#1E2142}
@@ -345,11 +357,14 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
   <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 6l5 4-5 4"/><path d="M20 10H9a5 5 0 0 0 0 10h3"/></symbol>
   <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 6L4 10l5 4"/><path d="M4 10h11a5 5 0 0 1 0 10h-3"/></symbol>
   <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11V4.5a1.5 1.5 0 0 1 3 0V12M14 11V6.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-.5a6 6 0 0 1-4.6-2.2L3 16.3a1.5 1.5 0 0 1 2.3-2L8 16"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-1.3-1.1-1.6-1.1-2.7 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-3.9-4-7.1-9-7.1z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7" r="1.2"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M14 4l6 6-2 2-6-6zM12 6l-7.5 7.5L4 20l6.5-.5L18 12"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></symbol>
   <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
 </svg>
 
 <header class="top">
-  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v2.9</small></div></div>
+  <div class="brand"><div class="logo"><svg class="i" style="width:20px;height:20px"><use href="#i-cam"/></svg></div><div>KLM Cetak Foto<small>Studio &amp; Digital Printing · v3.0</small></div></div>
   <nav class="tabs" role="tablist" aria-label="Mode cetak">
     <button class="tab" role="tab" data-mode="pas"><svg class="i"><use href="#i-person"/></svg>Pas Foto</button>
     <button class="tab" role="tab" data-mode="grid"><svg class="i"><use href="#i-grid"/></svg>Layout Grid</button>
@@ -394,6 +409,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
     <div class="desk" id="desk">
       <div class="hint"><span id="hintTxt">Ketuk foto di lembar untuk mengatur posisi</span></div>
       <canvas id="sheet" aria-label="Pratinjau kertas"></canvas>
+      <div class="zoombar dz" id="deskZoom"><button id="dzOut" aria-label="Perkecil lembar">−</button><button id="dzFit" title="Pas layar"><span id="dzTxt">100%</span></button><button id="dzIn" aria-label="Perbesar lembar">+</button></div>
       <div class="pager" id="pager"><button id="prevPg" aria-label="Halaman sebelumnya"><svg class="i"><use href="#i-l"/></svg></button><span id="pgTxt">1 / 1</span><button id="nextPg" aria-label="Halaman berikutnya"><svg class="i"><use href="#i-r"/></svg></button></div>
     </div>
     <div class="outbar">
@@ -634,6 +650,7 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
     <div class="seg ex-seg" role="group" aria-label="Kuas">
       <button data-exmode="erase"><svg class="i"><use href="#i-brush"/></svg>Hapus</button>
       <button data-exmode="keep"><svg class="i"><use href="#i-magic"/></svg>Pulihkan</button>
+      <button data-exmode="paint"><svg class="i"><use href="#i-palette"/></svg>Kuas warna</button>
     </div>
     <span class="ex-sp"></span>
     <button class="btn sm icon" id="exUndo" title="Urungkan (Ctrl+Z)" aria-label="Urungkan"><svg class="i"><use href="#i-undo"/></svg></button>
@@ -645,6 +662,13 @@ dialog::backdrop{background:rgba(14,16,36,.55);backdrop-filter:blur(2px)}
     <div class="zoombar"><button id="exZout2" aria-label="Perkecil">−</button><button id="exFit2" title="Pas layar">Pas</button><button id="exZin2" aria-label="Perbesar">+</button></div>
     <div class="ex-hint" id="exHint">Zoom: cubit dua jari, scroll, atau slider Perbesar</div><div class="busy" id="exBusy" hidden><div><span class="spin"></span><span>Memproses…</span></div></div></div>
   <div class="ex-bot">
+    <div class="ex-paint" id="exPaintBar" hidden>
+      <div class="chips" id="exBrushes"></div>
+      <div class="ex-prow" id="exColorRow"><span class="exlbl">Warna</span><label class="sw" id="exColorSw" title="Pilih warna"><input type="color" id="exColor" value="#E0B89C"></label><div class="swatches" id="exSw"></div>
+        <button class="btn sm" id="exPick" aria-pressed="false" title="Ambil warna dari foto"><svg class="i"><use href="#i-drop"/></svg>Ambil warna</button></div>
+      <div class="ex-prow" id="exCloneRow" hidden><button class="btn sm" id="exClone" aria-pressed="false"><svg class="i"><use href="#i-target"/></svg>Atur titik sumber</button><span class="note">Ketuk titik sumber, lalu usap area tujuan. Sumber ikut bergeser bersama kuas.</span></div>
+      <label class="fld"><span>Kekuatan <b id="exOpaTxt">80%</b></span><input type="range" id="exOpa" min="5" max="100" value="80"></label>
+    </div>
     <label class="fld"><span>Ukuran kuas <b id="exSizeTxt">40</b></span><input type="range" id="exSize" min="4" max="160" value="40"></label>
     <label class="fld"><span>Perbesar <b id="exZoomTxt2">100%</b></span><input type="range" id="exZoom" min="100" max="1200" step="10" value="100"></label>
     <label class="fld"><span>Kekerasan <b id="exHardTxt">60%</b></span><input type="range" id="exHard" min="0" max="95" value="60"></label>
@@ -843,11 +867,13 @@ function geoMap(p){
 function strokeToGeo(p,st,G){if(st.sp!=='o')return st;G=G||geoMap(p);
   const P=st.pts.map(([u,v])=>{const[x,y]=G.fwd([u*G.ow,v*G.oh]);return[x/G.gw,y/G.gh]});
   const q0=[st.pts[0][0]*G.ow,st.pts[0][1]*G.oh],a=G.fwd(q0),b=G.fwd([q0[0]+1,q0[1]]),sc=Math.hypot(b[0]-a[0],b[1]-a[1])||1;
-  return{m:st.m,h:st.h,r:st.r*Math.max(G.ow,G.oh)*sc/Math.max(G.gw,G.gh),pts:P}}
+  const o={...st,r:st.r*Math.max(G.ow,G.oh)*sc/Math.max(G.gw,G.gh),pts:P};delete o.sp;
+  if(st.src){const[x,y]=G.fwd([st.src[0]*G.ow,st.src[1]*G.oh]);o.src=[x/G.gw,y/G.gh]}return o}
 function strokeToOrig(p,st,G){if(st.sp==='o')return st;G=G||geoMap(p);
   const P=st.pts.map(([u,v])=>{const[x,y]=G.inv([u*G.gw,v*G.gh]);return[+(x/G.ow).toFixed(5),+(y/G.oh).toFixed(5)]});
   const q0=[st.pts[0][0]*G.gw,st.pts[0][1]*G.gh],a=G.inv(q0),b=G.inv([q0[0]+1,q0[1]]),sc=Math.hypot(b[0]-a[0],b[1]-a[1])||1;
-  return{sp:'o',m:st.m,h:st.h,r:+(st.r*Math.max(G.gw,G.gh)*sc/Math.max(G.ow,G.oh)).toFixed(6),pts:P}}
+  const o={...st,sp:'o',r:+(st.r*Math.max(G.gw,G.gh)*sc/Math.max(G.ow,G.oh)).toFixed(6),pts:P};
+  if(st.src){const[x,y]=G.inv([st.src[0]*G.gw,st.src[1]*G.gh]);o.src=[+(x/G.ow).toFixed(5),+(y/G.oh).toFixed(5)]}return o}
 function warpQuad(src,q,aspect){
   const sw=src.width,sh=src.height,{P,W,H}=warpInfo(sw,sh,q,aspect);
   const M=homography([[0,0],[W,0],[W,H],[0,H]],P);
@@ -935,17 +961,43 @@ function guided(Ig,P,W,H,r,eps){const N=W*H,IP=new Float32Array(N),II=new Float3
   const ma=boxF(a,W,H,r),mb=boxF(b,W,H,r),q=new Float32Array(N);for(let j=0;j<N;j++){const v=ma[j]*Ig[j]+mb[j];q[j]=v<0?0:v>1?1:v}return q}
 /* ============ HAPUS & PULIHKAN (gaya Canva) ============ */
 /* Satu goresan = {m:'erase'|'keep', r: jari-jari (relatif sisi terpanjang), h: kekerasan 0..1, pts:[[u,v]...]} */
-function stampStroke(x,st,W,H,i0){
+function stampStroke(x,st,W,H,i0,i1){
   const big=Math.max(W,H),r=Math.max(0.6,st.r*big),h=Math.min(0.97,st.h??0.6),sp=Math.max(0.5,r*0.22);
   const dot=(px,py)=>{const g=x.createRadialGradient(px,py,r*h,px,py,r);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.beginPath();x.arc(px,py,r,0,7);x.fill()};
-  const P=st.pts;let s=i0||0;
+  const P=st.pts;let s=i0||0;const e=i1==null?P.length-1:Math.min(i1,P.length-1);
   if(s===0){dot(P[0][0]*W,P[0][1]*H);s=1}
-  for(let i=s;i<P.length;i++){const ax=P[i-1][0]*W,ay=P[i-1][1]*H,bx=P[i][0]*W,by=P[i][1]*H,d=Math.hypot(bx-ax,by-ay),n=Math.max(1,Math.ceil(d/sp));
+  for(let i=s;i<=e;i++){const ax=P[i-1][0]*W,ay=P[i-1][1]*H,bx=P[i][0]*W,by=P[i][1]*H,d=Math.hypot(bx-ax,by-ay),n=Math.max(1,Math.ceil(d/sp));
     for(let k=1;k<=n;k++)dot(ax+(bx-ax)*k/n,ay+(by-ay)*k/n)}}
 function applyStrokesToAlpha(ac,strokes){if(!strokes||!strokes.length)return;const x=ac.getContext('2d'),W=ac.width,H=ac.height;
-  for(const st of strokes){x.globalCompositeOperation=st.m==='erase'?'destination-out':'source-over';stampStroke(x,st,W,H)}x.globalCompositeOperation='source-over'}
+  for(const st of strokes){if(st.m!=='erase'&&st.m!=='keep')continue;x.globalCompositeOperation=st.m==='erase'?'destination-out':'source-over';stampStroke(x,st,W,H)}x.globalCompositeOperation='source-over'}
+/* ---------- satu mesin kuas untuk pratinjau dan hasil akhir: hapus, pulihkan, dan kuas warna ---------- */
+const BRUSHES=[['cat','Cat warna'],['warnai','Warnai (ganti warna, tekstur tetap)'],['terang','Cerahkan'],['gelap','Gelapkan'],['halus','Haluskan'],['klon','Klon / stempel']];
+const BRUSH_SHORT={cat:'Cat',warnai:'Warnai',terang:'Cerahkan',gelap:'Gelapkan',halus:'Haluskan',klon:'Klon'};
+const _tc={};function tmpC(k,w,h){let c=_tc[k];if(!c||c.width<w||c.height<h){c=_tc[k]=cv(Math.max(w,c?c.width:0,8),Math.max(h,c?c.height:0,8))}return c}
+const hasPaint=sts=>!!(sts&&sts.some(st=>st.m==='paint'));
+function paintSeg(ctx,st,i0,i1,env){
+  const cnv=ctx.canvas,W=cnv.width,H=cnv.height,big=Math.max(W,H),r=st.r*big+2,P=st.pts;
+  const a=Math.max(0,(i0||0)-1),b=i1==null?P.length-1:Math.min(i1,P.length-1);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(let k=a;k<=b;k++){const u=P[k][0]*W,v=P[k][1]*H;x0=Math.min(x0,u);y0=Math.min(y0,v);x1=Math.max(x1,u);y1=Math.max(y1,v)}
+  x0=Math.max(0,Math.floor(x0-r));y0=Math.max(0,Math.floor(y0-r));x1=Math.min(W,Math.ceil(x1+r));y1=Math.min(H,Math.ceil(y1+r));const bw=x1-x0,bh=y1-y0;if(bw<=0||bh<=0)return;
+  const M=tmpC('M',bw,bh),m=M.getContext('2d');m.setTransform(1,0,0,1,0,0);m.globalCompositeOperation='source-over';m.clearRect(0,0,bw,bh);m.translate(-x0,-y0);stampStroke(m,st,W,H,i0,i1);m.setTransform(1,0,0,1,0,0);
+  const T=tmpC('T',bw,bh),t=T.getContext('2d');t.setTransform(1,0,0,1,0,0);t.globalCompositeOperation='source-over';t.globalAlpha=1;t.clearRect(0,0,bw,bh);
+  const ty=st.m==='paint'?st.t:st.m;
+  if(ty==='erase'){t.fillStyle=env.bg;t.fillRect(0,0,bw,bh)}
+  else if(ty==='keep'){const R0=env.restore,sx=R0.width/W,sy=R0.height/H;t.drawImage(R0,x0*sx,y0*sy,bw*sx,bh*sy,0,0,bw,bh)}
+  else if(ty==='cat'||ty==='warnai'){t.fillStyle=st.c||'#000';t.fillRect(0,0,bw,bh)}
+  else if(ty==='terang'){t.fillStyle='#fff';t.fillRect(0,0,bw,bh)}
+  else if(ty==='gelap'){t.fillStyle='#000';t.fillRect(0,0,bw,bh)}
+  else if(ty==='halus'){const k=Math.max(2,Math.round(st.r*big/3)),sw=Math.max(1,Math.ceil(bw/k)),sh=Math.max(1,Math.ceil(bh/k)),B=tmpC('B',sw,sh),bx=B.getContext('2d');
+    bx.clearRect(0,0,sw,sh);bx.imageSmoothingQuality='high';bx.drawImage(cnv,x0,y0,bw,bh,0,0,sw,sh);t.imageSmoothingEnabled=true;t.imageSmoothingQuality='high';t.drawImage(B,0,0,sw,sh,0,0,bw,bh)}
+  else if(ty==='klon'){const src=st.src||P[0],dx=(src[0]-P[0][0])*W,dy=(src[1]-P[0][1])*H;
+    const C=tmpC('C',bw,bh),cx=C.getContext('2d');cx.clearRect(0,0,bw,bh);cx.drawImage(cnv,-(x0+dx),-(y0+dy));t.drawImage(C,0,0,bw,bh,0,0,bw,bh)}
+  t.globalCompositeOperation='destination-in';t.drawImage(M,0,0,bw,bh,0,0,bw,bh);t.globalCompositeOperation='source-over';
+  ctx.save();ctx.globalAlpha=st.m==='paint'?(st.o??0.8):1;ctx.globalCompositeOperation=ty==='warnai'?'color':(ty==='terang'||ty==='gelap')?'soft-light':'source-over';
+  ctx.drawImage(T,0,0,bw,bh,x0,y0,bw,bh);ctx.restore()}
+function replayStroke(ctx,st,env){paintSeg(ctx,st,0,0,env);for(let i=1;i<st.pts.length;i++)paintSeg(ctx,st,i,i,env)}
 
-const X={p:null,mode:'erase',strokes:[],redo:[],cur:null,buf:null,orig:null,M:null,T:null,z:1,tx:0,ty:0,ptrs:new Map(),pinch:null,hover:null,peek:false};
+const X={brush:'cat',color:'#E0B89C',cloneAnchor:null,cloneOff:null,cloneSet:false,pick:false,p:null,mode:'erase',strokes:[],redo:[],cur:null,buf:null,orig:null,M:null,T:null,z:1,tx:0,ty:0,ptrs:new Map(),pinch:null,hover:null,peek:false};
 function exSize(){return num($('#exSize').value)}
 function exHard(){return num($('#exHard').value)/100}
 async function openEraser(){
@@ -960,17 +1012,8 @@ async function openEraser(){
   X.final=cv(W,H);const fx=X.final.getContext('2d');fx.imageSmoothingQuality='high';fx.drawImage(p.out,0,0,W,H);
   X.buf=cv(W,H);X.M=cv(W,H);X.T=cv(W,H);{const G=geoMap(p);X.strokes=old.map(st=>strokeToGeo(p,st,G))}X.redo=[];X.cur=null;
   exRebuild();$('#eraser').showModal();const hn=$('#exHint');hn.classList.remove('off');clearTimeout(X.hintT);X.hintT=setTimeout(()=>hn.classList.add('off'),4500);X.z=1;X.tx=0;X.ty=0;exMode(X.mode);requestAnimationFrame(exDraw)}
-function exRebuild(){const b=X.buf.getContext('2d');b.globalCompositeOperation='source-over';b.drawImage(X.final,0,0);for(const st of X.strokes)exPaint(st,0)}
-function exPaint(st,i0){
-  const W=X.buf.width,H=X.buf.height,big=Math.max(W,H),r=st.r*big+2;
-  const P=st.pts.slice(Math.max(0,(i0||0)-1));let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const[u,v]of P){x0=Math.min(x0,u*W);y0=Math.min(y0,v*H);x1=Math.max(x1,u*W);y1=Math.max(y1,v*H)}
-  x0=Math.max(0,Math.floor(x0-r));y0=Math.max(0,Math.floor(y0-r));x1=Math.min(W,Math.ceil(x1+r));y1=Math.min(H,Math.ceil(y1+r));const bw=x1-x0,bh=y1-y0;if(bw<=0||bh<=0)return;
-  const m=X.M.getContext('2d'),t=X.T.getContext('2d'),b=X.buf.getContext('2d');
-  m.clearRect(x0,y0,bw,bh);m.save();m.beginPath();m.rect(x0,y0,bw,bh);m.clip();stampStroke(m,st,W,H,i0);m.restore();
-  t.globalCompositeOperation='source-over';t.clearRect(x0,y0,bw,bh);
-  if(st.m==='erase'){t.fillStyle=X.p.bg.color;t.fillRect(x0,y0,bw,bh)}else t.drawImage(X.orig,x0,y0,bw,bh,x0,y0,bw,bh);
-  t.globalCompositeOperation='destination-in';t.drawImage(X.M,x0,y0,bw,bh,x0,y0,bw,bh);t.globalCompositeOperation='source-over';
-  b.drawImage(X.T,x0,y0,bw,bh,x0,y0,bw,bh)}
+function exRebuild(){const b=X.buf.getContext('2d');b.globalCompositeOperation='source-over';b.globalAlpha=1;b.drawImage(X.final,0,0);const env={restore:X.orig,bg:X.p.bg.color};for(const st of X.strokes)replayStroke(b,st,env)}
+function exPaint(st,i0,i1){paintSeg(X.buf.getContext('2d'),st,i0,i1==null?i0:i1,{restore:X.orig,bg:X.p.bg.color})}
 function exView(){const wrap=$('#exWrap'),cw=wrap.clientWidth,ch=wrap.clientHeight,W=X.buf.width,H=X.buf.height,fit=Math.min((cw-24)/W,(ch-24)/H),s=fit*X.z;
   return{cw,ch,s,ox:(cw-W*s)/2+X.tx,oy:(ch-H*s)/2+X.ty,fit}}
 function exDraw(){if(!$('#eraser').open||!X.buf)return;const c=$('#exCanvas'),wrap=$('#exWrap'),dpr=Math.min(2,devicePixelRatio||1),v=exView();
@@ -979,10 +1022,14 @@ function exDraw(){if(!$('#eraser').open||!X.buf)return;const c=$('#exCanvas'),wr
   x.drawImage(X.peek?X.orig:X.buf,v.ox,v.oy,W*v.s,H*v.s);
   if(X.mode==='keep'&&!X.peek){x.save();x.globalAlpha=0.28;x.drawImage(X.orig,v.ox,v.oy,W*v.s,H*v.s);x.restore()}   // bayangan foto asli saat memulihkan
   x.strokeStyle='rgba(30,33,66,.5)';x.lineWidth=1;x.strokeRect(v.ox-.5,v.oy-.5,W*v.s+1,H*v.s+1);
-  if(X.hover&&!X.pinch){const r=exSize()/2;x.save();x.beginPath();x.arc(X.hover[0],X.hover[1],r,0,7);x.lineWidth=2.5;x.strokeStyle='#fff';x.stroke();x.lineWidth=1.2;x.strokeStyle=X.mode==='erase'?'#E5484D':'#1FB59C';x.stroke();
+  if(X.hover&&!X.pinch){const r=exSize()/2;x.save();x.beginPath();x.arc(X.hover[0],X.hover[1],r,0,7);x.lineWidth=2.5;x.strokeStyle='#fff';x.stroke();x.lineWidth=1.2;x.strokeStyle=X.mode==='erase'?'#E5484D':X.mode==='keep'?'#1FB59C':(X.brush==='cat'||X.brush==='warnai'?X.color:'#5B8DEF');x.stroke();
     if(exHard()<0.9){x.setLineDash([3,3]);x.beginPath();x.arc(X.hover[0],X.hover[1],r*exHard(),0,7);x.stroke()}x.restore()}
+  if(X.mode==='paint'&&X.brush==='klon'&&X.cloneAnchor&&!X.peek){const sx=v.ox+X.cloneAnchor[0]*W*v.s,sy=v.oy+X.cloneAnchor[1]*H*v.s;x.save();x.strokeStyle='#fff';x.lineWidth=3;x.beginPath();x.moveTo(sx-9,sy);x.lineTo(sx+9,sy);x.moveTo(sx,sy-9);x.lineTo(sx,sy+9);x.stroke();x.strokeStyle='#5B8DEF';x.lineWidth=1.5;x.stroke();x.restore()}
   $('#exZoomTxt').textContent=Math.round(X.z*100)+'%';$('#exZoomTxt2').textContent=Math.round(X.z*100)+'%';if(document.activeElement!==$('#exZoom'))$('#exZoom').value=Math.round(X.z*100);$('#exUndo').disabled=X.strokes.length<=0;$('#exRedo').disabled=!X.redo.length}
-function exMode(m){X.mode=m;$$('[data-exmode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.exmode===m));exDraw()}
+function exMode(m){X.mode=m;$$('[data-exmode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.exmode===m));$('#exPaintBar').hidden=m!=='paint';if(m!=='paint'){X.pick=false}exDraw()}
+function setPaintColor(c){X.color=c.toUpperCase();$('#exColor').value=X.color;$$('#exSw [data-pc]').forEach(b=>b.classList.toggle('on',b.dataset.pc===X.color));$('#exColorSw').style.background=X.color}
+function setBrush(t){X.brush=t;$$('#exBrushes [data-br]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.br===t));$('#exColorRow').hidden=!(t==='cat'||t==='warnai');$('#exCloneRow').hidden=t!=='klon';
+  if(t==='klon'&&!X.cloneAnchor){X.cloneSet=true;$('#exClone').setAttribute('aria-pressed','true');toast('Klon: ketuk dulu titik sumber yang mau disalin.')}exDraw()}
 function exPt(e){const r=$('#exCanvas').getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
 function exUV(px,py){const v=exView();return[(px-v.ox)/(v.s*X.buf.width),(py-v.oy)/(v.s*X.buf.height)]}
 function exZoomAt(f,px,py){const v=exView(),nz=Math.min(12,Math.max(1,X.z*f));const k=nz/X.z;
@@ -999,7 +1046,14 @@ function bindEraser(){
     if(X.ptrs.size>2)return;
     if(e.button===1||e.button===2||X.pan||e.altKey){X.drag={pt,tx:X.tx,ty:X.ty};return}
     const v=exView(),r=exSize()/2/(v.s*Math.max(X.buf.width,X.buf.height));
-    X.cur={m:X.mode,r:+r.toFixed(5),h:+exHard().toFixed(2),pts:[exUV(...pt)]};exPaint(X.cur,0);exDraw()});
+    const uv=exUV(...pt);
+    if(X.mode==='paint'&&X.pick){const px=X.buf.getContext('2d').getImageData(Math.max(0,Math.min(X.buf.width-1,Math.round(uv[0]*X.buf.width))),Math.max(0,Math.min(X.buf.height-1,Math.round(uv[1]*X.buf.height))),1,1).data;
+      const hx='#'+[px[0],px[1],px[2]].map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();setPaintColor(hx);X.pick=false;$('#exPick').setAttribute('aria-pressed','false');toast('Warna diambil: '+hx);X.ptrs.delete(e.pointerId);exDraw();return}
+    if(X.mode==='paint'&&X.brush==='klon'&&(X.cloneSet||!X.cloneAnchor)){X.cloneAnchor=uv;X.cloneOff=null;X.cloneSet=false;$('#exClone').setAttribute('aria-pressed','false');toast('Titik sumber dipilih. Sekarang usap area yang ingin ditutup.');X.ptrs.delete(e.pointerId);exDraw();return}
+    X.cur={m:X.mode,r:+r.toFixed(5),h:+exHard().toFixed(2),pts:[uv]};
+    if(X.mode==='paint'){X.cur.t=X.brush;X.cur.o=+(num($('#exOpa').value)/100).toFixed(2);if(X.brush==='cat'||X.brush==='warnai')X.cur.c=X.color;
+      if(X.brush==='klon'){if(X.cloneAnchor&&!X.cloneOff)X.cloneOff=[X.cloneAnchor[0]-uv[0],X.cloneAnchor[1]-uv[1]];X.cur.src=[+(uv[0]+X.cloneOff[0]).toFixed(4),+(uv[1]+X.cloneOff[1]).toFixed(4)]}}
+    exPaint(X.cur,0);exDraw()});
   c.addEventListener('pointermove',e=>{const pt=exPt(e);if(e.pointerType==='mouse')X.hover=pt;
     if(!X.ptrs.has(e.pointerId)){exDraw();return}X.ptrs.set(e.pointerId,pt);
     if(X.pinch&&X.ptrs.size>=2){const[a,b]=[...X.ptrs.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
@@ -1015,6 +1069,16 @@ function bindEraser(){
   c.addEventListener('contextmenu',e=>e.preventDefault());
   c.addEventListener('wheel',e=>{e.preventDefault();const[px,py]=exPt(e);if(e.ctrlKey||!e.shiftKey)exZoomAt(e.deltaY<0?1.15:1/1.15,px,py)},{passive:false});
   $$('[data-exmode]').forEach(b=>b.addEventListener('click',()=>exMode(b.dataset.exmode)));
+  $('#exBrushes').innerHTML=BRUSHES.map(([k,t])=>`<button data-br="${k}" title="${t}">${BRUSH_SHORT[k]}</button>`).join('');
+  $('#exBrushes').addEventListener('click',e=>{const b=e.target.closest('[data-br]');if(b)setBrush(b.dataset.br)});
+  const PCOL=['#E0B89C','#C68E6A','#8D5A3C','#2B1D16','#000000','#FFFFFF','#C8102E','#1F4FB5','#1E2142','#F2F2F2'];
+  $('#exSw').innerHTML=PCOL.map(c=>`<button class="sw" data-pc="${c}" style="background:${c}" aria-label="Warna ${c}"></button>`).join('');
+  $('#exSw').addEventListener('click',e=>{const b=e.target.closest('[data-pc]');if(b)setPaintColor(b.dataset.pc)});
+  $('#exColor').addEventListener('input',e=>setPaintColor(e.target.value));
+  $('#exPick').addEventListener('click',e=>{X.pick=!X.pick;e.currentTarget.setAttribute('aria-pressed',X.pick);if(X.pick)toast('Ketuk bagian foto untuk mengambil warnanya.')});
+  $('#exClone').addEventListener('click',e=>{X.cloneSet=true;X.cloneOff=null;e.currentTarget.setAttribute('aria-pressed','true');toast('Ketuk titik sumber yang mau disalin.')});
+  $('#exOpa').addEventListener('input',e=>{$('#exOpaTxt').textContent=e.target.value+'%'});
+  setBrush('cat');setPaintColor('#E0B89C');
   $('#exUndo').addEventListener('click',()=>{if(!X.strokes.length)return;X.redo.push(X.strokes.pop());exRebuild();exDraw()});
   $('#exRedo').addEventListener('click',()=>{if(!X.redo.length)return;const st=X.redo.pop();X.strokes.push(st);exPaint(st,0);exDraw()});
   $('#exZin').addEventListener('click',()=>{const v=exView();exZoomAt(1.4,v.cw/2,v.ch/2)});
@@ -1034,7 +1098,7 @@ function bindEraser(){
   $('#eraser').addEventListener('cancel',e=>{e.preventDefault();exEnd(false)});
   document.addEventListener('keydown',e=>{if(!$('#eraser').open)return;const k=e.key.toLowerCase();
     if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();(e.shiftKey?$('#exRedo'):$('#exUndo')).click()}
-    else if(k==='e')exMode('erase');else if(k==='r')exMode('keep');
+    else if(k==='e')exMode('erase');else if(k==='r')exMode('keep');else if(k==='b')exMode('paint');
     else if(k==='['||k===']'){const s=$('#exSize');s.value=num(s.value)+(k===']'?5:-5);s.dispatchEvent(new Event('input'))}});
   new ResizeObserver(()=>exDraw()).observe($('#exWrap'))}
 function refineMatte(g,coarse,sw,sh,bg,soft){
@@ -1170,9 +1234,12 @@ async function processPhotoRaw(p){
   const sh=a.sharp/100*1.6+(up>1.05?0.45:0);
   if(sh>0)unsharp(d,w,h,up>1.05?2:1,sh,2);
   applyFilter(d,w,h,a.filter);
+  const pStr=hasPaint(p.bg.strokes)?(()=>{const G=geoMap(p);return p.bg.strokes.map(st=>strokeToGeo(p,st,G))})():null;let pre=null;
+  if(pStr){pre=cv(w,h);pre.getContext('2d').putImageData(id,0,0)}
   if(mask){const md=scaledData(mask.a,w,h),[cr,cg,cb]=NC;
     for(let i=0;i<d.length;i+=4){const al=md[i+3]/255;if(al<1){d[i]=d[i]*al+cr*(1-al);d[i+1]=d[i+1]*al+cg*(1-al);d[i+2]=d[i+2]*al+cb*(1-al)}}}
   x.putImageData(id,0,0);
+  if(pStr){const env={restore:pre,bg:p.bg.color};for(const st of pStr){if(st.m!=='paint'&&!mask)continue;replayStroke(x,st,env)}}
   if(tok!==p._tok)return false;
   p.out=c;p._gray=null;persist(p);
   const tk=Math.min(1,160/Math.max(w,h)),t=cv(w*tk,h*tk),tx=t.getContext('2d');tx.imageSmoothingQuality='high';tx.drawImage(c,0,0,t.width,t.height);p.thumb=t.toDataURL('image/jpeg',0.8);
@@ -1330,11 +1397,15 @@ let rafD=0;function draw(){cancelAnimationFrame(rafD);rafD=requestAnimationFrame
 function drawNow(){
   const pages=layout();V.pages=pages;if(V.page>=pages.length)V.page=pages.length-1;if(V.page<0)V.page=0;
   const[W,H]=paperDims(),desk=$('#desk'),aw=desk.clientWidth-36,ah=desk.clientHeight-72;
-  let k=Math.min(aw/W,ah/H);if(!(k>0))k=1.5;V.pxmm=k;
-  const dpr=Math.min(3,window.devicePixelRatio||1),c=$('#sheet');c.width=Math.round(W*k*dpr);c.height=Math.round(H*k*dpr);c.style.width=W*k+'px';c.style.height=H*k+'px';
+  let k=Math.min(aw/W,ah/H);if(!(k>0))k=1.5;const zm=V.zoom||1;k*=zm;V.pxmm=k;
+  let dpr=Math.min(3,window.devicePixelRatio||1);dpr=Math.min(dpr,Math.sqrt(22e6/Math.max(1,W*k*H*k)));const c=$('#sheet');
+  if(zm<=1){V.tx=V.ty=0}deskXf();$('#dzTxt').textContent=Math.round(zm*100)+'%';desk.classList.toggle('zoomed',zm>1);c.width=Math.round(W*k*dpr);c.height=Math.round(H*k*dpr);c.style.width=W*k+'px';c.style.height=H*k+'px';
   const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);drawPage(x,pages[V.page],k,true);
   $('#pgTxt').textContent=(V.page+1)+' / '+pages.length;$('#prevPg').disabled=V.page===0;$('#nextPg').disabled=V.page>=pages.length-1;
   updateInfo(pages)}
+function deskXf(){const c=$('#sheet');c.style.transform=(V.zoom||1)>1?`translate(${V.tx||0}px,${V.ty||0}px)`:''}
+function deskZoomAt(f,px,py){const d=$('#desk'),r=d.getBoundingClientRect(),cx=r.width/2,cy=r.height/2,z0=V.zoom||1,nz=Math.min(6,Math.max(1,z0*f)),k=nz/z0;
+  V.tx=(px-cx)-(px-cx-(V.tx||0))*k;V.ty=(py-cy)-(py-cy-(V.ty||0))*k;V.zoom=nz;if(nz===1)V.tx=V.ty=0;deskXf();draw()}
 function updateInfo(pages){
   const[W,H]=paperDims();const tot=pages.reduce((a,p)=>a+p.items.length,0);let html=`<span class="chip">${fmt(W)}×${fmt(H)} mm</span><span class="chip"><b>${pages.length}</b> kertas</span>`;
   if(S.mode==='pas'){html+=`<span class="chip"><b>${tot}</b> foto</span>`;const j=S.pas.jobs[0];if(j){const[w,h]=pasSize(j);html+=`<span class="chip">${fmt(w/10)}×${fmt(h/10)} cm muat ${fitCount(w,h)}/kertas</span>`}}
@@ -1743,7 +1814,24 @@ function bind(){
   document.addEventListener('drop',e=>{if(e.dataTransfer?.files?.length){e.preventDefault();addFiles(e.dataTransfer.files)}});
   document.addEventListener('paste',e=>{const fs=[...(e.clipboardData?.items||[])].filter(i=>i.kind==='file').map(i=>i.getAsFile()).filter(Boolean);if(fs.length){e.preventDefault();addFiles(fs)}});
   // sheet
-  $('#sheet').addEventListener('click',e=>{const r=e.target.getBoundingClientRect(),mx=(e.clientX-r.left)/V.pxmm,my=(e.clientY-r.top)/V.pxmm;const pg=V.pages[V.page];if(!pg)return;
+  // zoom & geser lembar kerja: scroll / cubit dua jari / tombol; seret untuk menggeser saat diperbesar
+  {const d=$('#desk'),zp=new Map();let pinch=null,drag=null;
+    const pt=e=>{const r=d.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
+    d.addEventListener('wheel',e=>{if(e.target.closest('.pager,.zoombar'))return;e.preventDefault();const[px,py]=pt(e);deskZoomAt(e.deltaY<0?1.15:1/1.15,px,py)},{passive:false});
+    d.addEventListener('pointerdown',e=>{if(e.target.closest('.pager,.zoombar,.hint'))return;zp.set(e.pointerId,pt(e));
+      if(zp.size===2){const[a,b]=[...zp.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1]),m:[(a[0]+b[0])/2,(a[1]+b[1])/2]};drag=null;V.dragged=true}
+      else if(zp.size===1&&(V.zoom||1)>1){drag={p:pt(e),tx:V.tx||0,ty:V.ty||0,moved:false}}});
+    d.addEventListener('pointermove',e=>{if(!zp.has(e.pointerId))return;const p=pt(e);zp.set(e.pointerId,p);
+      if(pinch&&zp.size>=2){const[a,b]=[...zp.values()],dd=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];V.tx=(V.tx||0)+m[0]-pinch.m[0];V.ty=(V.ty||0)+m[1]-pinch.m[1];deskZoomAt(dd/Math.max(1,pinch.d),m[0],m[1]);pinch={d:dd,m};return}
+      if(drag){const dx=p[0]-drag.p[0],dy=p[1]-drag.p[1];if(!drag.moved&&Math.hypot(dx,dy)>5){drag.moved=true;V.dragged=true;d.classList.add('panning');try{d.setPointerCapture(e.pointerId)}catch(_){}}
+        if(drag.moved){V.tx=drag.tx+dx;V.ty=drag.ty+dy;deskXf()}}});
+    const up=e=>{zp.delete(e.pointerId);if(zp.size<2)pinch=null;if(!zp.size){drag=null;d.classList.remove('panning');setTimeout(()=>{V.dragged=false},0)}};
+    d.addEventListener('pointerup',up);d.addEventListener('pointercancel',up);
+    $('#dzIn').addEventListener('click',()=>{const r=d.getBoundingClientRect();deskZoomAt(1.4,r.width/2,r.height/2)});
+    $('#dzOut').addEventListener('click',()=>{const r=d.getBoundingClientRect();deskZoomAt(1/1.4,r.width/2,r.height/2)});
+    $('#dzFit').addEventListener('click',()=>{V.zoom=1;V.tx=V.ty=0;draw()});
+    d.addEventListener('dblclick',e=>{if(e.target.closest('.pager,.zoombar'))return;const[px,py]=pt(e);if((V.zoom||1)>1){V.zoom=1;V.tx=V.ty=0;draw()}else deskZoomAt(2.5,px,py)})}
+  $('#sheet').addEventListener('click',e=>{if(V.dragged){V.dragged=false;return}const r=e.target.getBoundingClientRect(),mx=(e.clientX-r.left)/V.pxmm,my=(e.clientY-r.top)/V.pxmm;const pg=V.pages[V.page];if(!pg)return;
     const it=[...pg.items].reverse().find(i=>mx>=i.x&&mx<=i.x+i.w&&my>=i.y&&my<=i.y+i.h);if(!it)return;
     if(!it.pid||!photos.has(it.pid)){pickFiles(it.slot);return}
     openFramer(it)});

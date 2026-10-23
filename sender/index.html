@@ -712,6 +712,7 @@ function makeLink(code, via, name, kind){
 }
 const isIdle = l => !l.sending && !l.queue.length && !(l.incoming && ['offer','run'].includes(l.incoming.status));
 function onNewLink(l, mine){
+  l.lastSeen=Date.now();
   if(l.via==='p2p'){ addKeep(l.code, l.name); lostAt.delete(l.code); scheduleRelink(); keepAwake(true); }
   if(mine || (!selected.size && links.size===1)) selected.add(l.code);
   if(pending.has(l.code)) setTimeout(()=>{ if(links.get(l.code)===l) adoptPending(l); }, 600);
@@ -723,12 +724,10 @@ const pending = new Map();   // kode perangkat -> { name, batches:[] }
 const relinking = new Set(); let relinkTimer=0;
 /* perangkat yang selalu disambungkan ulang sampai diputuskan manual di salah satu perangkat */
 function loadKeep(){ try{ return JSON.parse(store.get('klm-keep')||'[]').filter(x=>x && /^[A-Z0-9]{6}$/.test(x.code)); }catch(e){ return []; } }
-let keep = [];   // tidak lagi menyimpan perangkat "hantu"; koneksi berjalan normal
-try{ store.set('klm-keep','[]'); }catch(e){}
+let keep = loadKeep();   // perangkat yang sudah terhubung tetap terhubung sampai diputuskan manual
 const lostAt = new Map();
 function saveKeep(){ store.set('klm-keep', JSON.stringify(keep)); }
-function addKeep(){ return; }
-function addKeepOld(code, name, kind){ const o=keep.find(k=>k.code===code); keep=keep.filter(k=>k.code!==code); keep.unshift({code, name:(name&&name!=='Perangkat')?name:(o?o.name:'Perangkat'), kind:kind||(o&&o.kind)||'pc'}); keep=keep.slice(0,20); saveKeep(); }
+function addKeep(code, name, kind){ const o=keep.find(k=>k.code===code); keep=keep.filter(k=>k.code!==code); keep.unshift({code, name:(name&&name!=='Perangkat')?name:(o?o.name:'Perangkat'), kind:kind||(o&&o.kind)||'pc'}); keep=keep.slice(0,20); saveKeep(); }
 function dropKeep(code){ keep=keep.filter(k=>k.code!==code); saveKeep(); lostAt.delete(code); }
 const isKept = code => keep.some(k=>k.code===code);
 function park(b, why){
@@ -757,7 +756,8 @@ function relinkTick(){
   });
   if(changed) renderDevices();
 }
-document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible'){ lostAt.forEach((_,c)=>lostAt.set(c, 0)); relinkTick(); } });
+document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible'){ lostAt.forEach((_,c)=>lostAt.set(c, 0)); links.forEach(l=>{ if(l.via==='p2p'){ l.lastSeen=Date.now(); lsend(l,{t:'ping'}); } }); relinkTick();
+  if(peer && !peer.destroyed && peer.disconnected){ try{ peer.reconnect(); }catch(e){} } } });
 window.addEventListener('online', () => setTimeout(relinkTick, 1500));
 function manualDisconnect(code){
   const l=links.get(code); dropKeep(code); pending.delete(code);
@@ -771,7 +771,11 @@ function adoptPending(l){
   list.forEach(b=>{ b.link=l; b.status='queue'; b.reason=''; b.done=0; b.sentRaw=0; l.queue.push(b); render(b); });
   selected.add(l.code); renderDevices(); runQueue(l);
 }
-setInterval(()=>{ links.forEach(l=>{ if(l.via==='p2p') lsend(l,{t:'ping'}); }); }, 15000);   // jaga koneksi tetap hidup
+setInterval(()=>{ links.forEach(l=>{ if(l.via==='p2p') lsend(l,{t:'ping'}); }); }, 10000);
+setInterval(()=>{ if(document.visibilityState!=='visible') return; const now=Date.now();
+  links.forEach(l=>{ if(l.via!=='p2p' || l.sending || (l.incoming && l.incoming.status==='run')) return;
+    const dcBad = !l.dc || l.dc.readyState==='closed' || l.dc.readyState==='closing';
+    if(dcBad || (l.pinger && l.lastSeen && now-l.lastSeen>45000)){ const c=l.conn; removeLink(l,true); try{c.close()}catch(e){} scheduleRelink(); } }); }, 5000);   // jaga koneksi tetap hidup
 function removeLink(l, quiet){
   if(links.get(l.code)!==l) return;
   links.delete(l.code); selected.delete(l.code);
@@ -829,16 +833,17 @@ function renderDevices(){
 $('selAll').onclick = () => { links.forEach((_,c)=>selected.add(c)); renderDevices(); };
 $('selNone').onclick = () => { selected.clear(); renderDevices(); };
 function updateDrop(){
-  let t=[...selected].map(c=>links.get(c)).filter(Boolean); if(!t.length && links.size===1) t=[...links.values()];
-  $('drop').classList.toggle('off', !links.size);
+  const all=[...links.values(), ...keep.filter(k=>!links.has(k.code))];
+  let t=[...selected].map(c=>links.get(c)||keep.find(k=>k.code===c)).filter(Boolean); if(!t.length && all.length===1) t=all;
+  $('drop').classList.toggle('off', !all.length);
   $('dropHint').innerHTML = t.length
     ? 'Kirim ke <b>'+t.map(l=>esc(l.name)).join(', ')+'</b>. Seret file ke sini atau pilih; ukuran berapa pun.'
-    : (links.size ? 'Pilih file, lalu pilih perangkat tujuan.' : 'Hubungkan perangkat dulu.');
+    : (all.length ? 'Pilih file, lalu pilih perangkat tujuan.' : 'Hubungkan perangkat dulu.');
 }
 function setDropHint(t){ $('dropHint').textContent=t; $('drop').classList.add('flash'); setTimeout(()=>$('drop').classList.remove('flash'),900); }
 let pickFilesBuf=null;
 function openPicker(files){
-  pickFilesBuf=files; const list=[...links.values()];
+  pickFilesBuf=files; const list=[...links.values(), ...keep.filter(k=>!links.has(k.code)).map(k=>({code:k.code, name:k.name, kind:k.kind==='hp'?'hp':'pc'}))];
   $('pickList').innerHTML=list.map(l=>'<label class="pick-it"><input type="checkbox" value="'+l.code+'"'+(selected.has(l.code)?' checked':'')+'><span class="dev-ic">'+ICON[l.kind]+'</span><span><b>'+esc(l.name)+'</b><small>'+fmtCode(l.code)+'</small></span></label>').join('');
   $('pickInfo').textContent=files.length+' file · '+fmt(files.reduce((s,f)=>s+f.size,0)); $('pickModal').hidden=false;
 }
@@ -977,7 +982,7 @@ function setupConn(c, mine){
     onNewLink(l, mine); detectRoute(l);
   };
   if(c.open) onOpen(); else c.on('open', onOpen);
-  c.on('data', d => { const l=links.get(code); if(l && l.conn===c){ if(typeof d==='string'){ let m; try{ m=JSON.parse(d) }catch(e){ return; } onControl(l,m); } else onChunk(l,d); } });
+  c.on('data', d => { const l=links.get(code); if(l && l.conn===c){ l.lastSeen=Date.now(); if(typeof d==='string'){ let m; try{ m=JSON.parse(d) }catch(e){ return; } onControl(l,m); } else onChunk(l,d); } });
   const gone = () => { const l=links.get(code); if(l && l.conn===c) removeLink(l); };
   c.on('close', gone); c.on('error', gone);
 }
@@ -1001,6 +1006,7 @@ $('copyCode').onclick = () => copy(fmtCode(myCode), 'Kode disalin.');
 /* ---------- pesan kontrol (sama untuk Wi-Fi lokal & internet) ---------- */
 function onControl(l, m){
   switch(m.t){
+    case 'ping': l.pinger=true; break;
     case 'bye':
       l.manual=true; dropKeep(l.code); pending.delete(l.code); toast(l.name+' memutuskan koneksi.'); { const c=l.conn; removeLink(l,true); try{c.close()}catch(e){} }
       break;
@@ -1036,9 +1042,11 @@ const relName = f => (f.webkitRelativePath || f.name);
 function queueFiles(list){
   const files = Array.from(list||[]).filter(f => f && f.size>=0);
   if(!files.length) return;
-  let targets=[...selected].map(c=>links.get(c)).filter(Boolean);
-  if(!targets.length && links.size===1) targets=[...links.values()];
-  if(!targets.length && links.size>1){ openPicker(files); return; }
+  const ghost = c => ({code:c, name:(keep.find(k=>k.code===c)||{}).name||'Perangkat', via:'p2p', route:'', queue:[], ghost:true});
+  const allCodes=[...new Set([...links.keys(), ...keep.map(k=>k.code)])];
+  let targets=[...selected].map(c=>links.get(c)||(isKept(c)?ghost(c):null)).filter(Boolean);
+  if(!targets.length && allCodes.length===1) targets=[links.get(allCodes[0])||ghost(allCodes[0])];
+  if(!targets.length && allCodes.length>1){ openPicker(files); return; }
   if(!targets.length){ setDropHint('Belum ada perangkat terhubung. Hubungkan perangkat dulu (masukkan kode atau pindai QR), lalu kirim lagi.'); $('peerCode').focus(); return; }
   const meta = files.map((f,i)=>({i, name:relName(f), size:f.size, type:f.type||''}));
   const total = files.reduce((s,f)=>s+f.size,0);
@@ -1232,9 +1240,10 @@ async function closeSink(l){
 }
 function cfAccepts(name,type){ return /^image\//.test(type||'') || /pdf/.test(type||'') || /\.(jpe?g|png|webp|gif|bmp|heic|pdf)$/i.test(name||''); }
 window.__klmQueue = list => queueFiles(list);
-window.__klmTargets = () => selected.size || (links.size===1 ? 1 : 0);
-window.__klmLinks = () => links.size;
-window.__klmNeedPick = () => !selected.size && links.size>1;
+const allCount = () => new Set([...links.keys(), ...keep.map(k=>k.code)]).size;
+window.__klmTargets = () => selected.size || (allCount()===1 ? 1 : 0);
+window.__klmLinks = () => allCount();
+window.__klmNeedPick = () => !selected.size && allCount()>1;
 function downloadItem(item){ const a=document.createElement('a'); a.href=item.url; a.download=flatName(item.name); a.rel='noopener'; document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(),100); }
 function finishIncoming(l){
   const b=l.incoming; if(!b) return;
